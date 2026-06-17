@@ -51,10 +51,6 @@ export const metadata: Metadata = {
       "Un parc géré avec exigence, une rentabilité pilotée par la donnée et un espace client intelligent propulsé par l'IA.",
     siteName: "LM Gestion Immobilière",
   },
-  icons: {
-    icon: "/logo.jpg",
-    apple: "/logo.jpg",
-  },
 };
 
 export default function RootLayout({
