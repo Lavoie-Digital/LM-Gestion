@@ -1,0 +1,110 @@
+import Link from "next/link";
+import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
+import { COMPANY, NAV_LINKS } from "@/lib/data";
+import { Logo } from "./logo";
+import { Reveal } from "@/components/ui/reveal";
+
+export function Footer() {
+  const year = 2026;
+
+  return (
+    <footer id="contact-footer" className="relative overflow-hidden bg-noir text-paper">
+      <div className="grid-faint absolute inset-0 opacity-50" aria-hidden />
+
+      <div className="shell relative">
+        <div className="grid gap-16 border-b border-line-dark py-20 md:py-28 lg:grid-cols-[1.2fr_1fr_1fr]">
+          <Reveal>
+            <div>
+              <Logo variant="compact" className="text-paper" />
+              <p className="mt-7 max-w-sm text-pretty text-[1.0625rem] leading-relaxed text-ash">
+                La gestion de votre patrimoine immobilier au Saguenay, menée avec l'exigence
+                d'un service privé et la précision de la donnée.
+              </p>
+
+              <div className="mt-8 flex flex-col gap-3 text-sm text-ash">
+                <a
+                  href={`tel:${COMPANY.phone.replace(/[^\d+]/g, "")}`}
+                  className="group inline-flex items-center gap-3 transition-colors hover:text-paper"
+                >
+                  <Phone className="size-4 opacity-60" />
+                  {COMPANY.phone}
+                </a>
+                <a
+                  href={`mailto:${COMPANY.email}`}
+                  className="group inline-flex items-center gap-3 transition-colors hover:text-paper"
+                >
+                  <Mail className="size-4 opacity-60" />
+                  {COMPANY.email}
+                </a>
+                <span className="inline-flex items-start gap-3">
+                  <MapPin className="mt-0.5 size-4 shrink-0 opacity-60" />
+                  {COMPANY.address}
+                </span>
+              </div>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.08}>
+            <div>
+              <h3 className="kicker text-ash">Navigation</h3>
+              <ul className="mt-6 flex flex-col gap-3.5">
+                {NAV_LINKS.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="link-draw text-[0.95rem] text-paper/85 transition-colors hover:text-paper"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.16}>
+            <div>
+              <h3 className="kicker text-ash">Espace client</h3>
+              <ul className="mt-6 flex flex-col gap-3.5">
+                <li>
+                  <Link
+                    href="/connexion"
+                    className="link-draw inline-flex items-center gap-1 text-[0.95rem] text-paper/85 transition-colors hover:text-paper"
+                  >
+                    Connexion
+                    <ArrowUpRight className="size-3.5" />
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/contact"
+                    className="link-draw text-[0.95rem] text-paper/85 transition-colors hover:text-paper"
+                  >
+                    Nous joindre
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </Reveal>
+        </div>
+
+        <div className="flex flex-col items-center justify-between gap-4 py-8 text-xs text-ash md:flex-row">
+          <p>
+            © {year} {COMPANY.name}. Tous droits réservés.
+          </p>
+          <p className="mono uppercase tracking-[0.2em] text-ash/70">
+            Site démo · conçu au Saguenay
+          </p>
+          <div className="flex items-center gap-6">
+            <Link href="/contact" className="transition-colors hover:text-paper">
+              Confidentialité
+            </Link>
+            <Link href="/contact" className="transition-colors hover:text-paper">
+              Conditions
+            </Link>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}

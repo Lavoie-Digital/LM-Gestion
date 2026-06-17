@@ -1,0 +1,274 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * LM Gestion Immobilière — Design System
+ * Monochrome luxury · editorial · "exaggerated minimalism"
+ * ------------------------------------------------------------------ */
+
+@theme inline {
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+}
+
+@theme {
+  /* Surfaces */
+  --color-paper: #f4f3f0; /* warm off-white — primary background */
+  --color-paper-2: #ece9e2; /* raised surface on paper */
+  --color-paper-3: #e3dfd6; /* deepest paper tone */
+  --color-ink: #0b0b0c; /* near-black — primary text / dark sections */
+  --color-ink-2: #151517; /* raised surface on dark */
+  --color-ink-3: #202023; /* hairline-lifted surface on dark */
+  --color-noir: #000000; /* true black — hero / footer */
+
+  /* Text */
+  --color-smoke: #54545a; /* muted text on paper (≈5.7:1) */
+  --color-ash: #a0a0a6; /* muted text on dark */
+  --color-platinum: #c6c4bd; /* metallic neutral accent */
+
+  /* Hairlines */
+  --color-line: rgba(11, 11, 12, 0.12);
+  --color-line-soft: rgba(11, 11, 12, 0.06);
+  --color-line-strong: rgba(11, 11, 12, 0.24);
+  --color-line-dark: rgba(244, 243, 240, 0.14);
+  --color-line-dark-soft: rgba(244, 243, 240, 0.07);
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+
+  --ease-lux: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --shadow-lift: 0 1px 2px rgba(11, 11, 12, 0.04), 0 18px 50px -28px rgba(11, 11, 12, 0.22);
+  --shadow-float: 0 2px 6px rgba(11, 11, 12, 0.05), 0 40px 90px -45px rgba(11, 11, 12, 0.35);
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--color-line);
+  }
+
+  html {
+    /* Native smooth-scroll is intentionally OFF: GSAP ScrollSmoother owns
+       smoothing on the vitrine; leaving it on causes double-easing/stutter.
+       `clip` (not `hidden`) tames horizontal overflow WITHOUT creating a
+       scroll container that would break ScrollTrigger / ScrollSmoother. */
+    overflow-x: clip;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Thin, restrained scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 99px;
+  }
+}
+
+@layer components {
+  /* Page container — wide editorial gutters */
+  .shell {
+    width: 100%;
+    margin-inline: auto;
+    max-width: 82.5rem; /* 1320px */
+    padding-inline: 1.5rem;
+  }
+  @media (min-width: 640px) {
+    .shell {
+      padding-inline: 2rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .shell {
+      padding-inline: 3rem;
+    }
+  }
+
+  /* Eyebrow / section index label */
+  .kicker {
+    font-family: var(--font-jetbrains), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  .mono {
+    font-family: var(--font-jetbrains), ui-monospace, monospace;
+  }
+}
+
+@layer utilities {
+  /* Animated underline that draws on hover (left → right) */
+  .link-draw {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.5s var(--ease-lux);
+  }
+  .link-draw:hover {
+    background-size: 100% 1px;
+  }
+
+  .hr-line {
+    height: 1px;
+    background: var(--color-line);
+  }
+  .hr-line-dark {
+    height: 1px;
+    background: var(--color-line-dark);
+  }
+
+  /* AI / data shimmer sweep */
+  .shimmer {
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 80%
+    );
+    background-size: 220% 100%;
+    animation: shimmer 1.6s var(--ease-lux) infinite;
+  }
+
+  .live-dot {
+    position: relative;
+  }
+  .live-dot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 99px;
+    background: currentColor;
+    opacity: 0.55;
+    animation: live-pulse 2s ease-out infinite;
+  }
+
+  /* Faint engineered grid textures */
+  .grid-faint {
+    background-image: linear-gradient(var(--color-line-dark-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-line-dark-soft) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  .grid-faint-light {
+    background-image: linear-gradient(var(--color-line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-line-soft) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  .img-grayscale {
+    filter: grayscale(1) contrast(1.05) brightness(0.98);
+  }
+
+  /* Cinematic film-grain — monochrome, fixed, never interactive */
+  .grain-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    pointer-events: none;
+    opacity: 0.04;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+  }
+
+  /* Vertical-rhythm section padding */
+  .section-y {
+    padding-block: clamp(5rem, 11vw, 11rem);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 180% 0;
+  }
+  100% {
+    background-position: -80% 0;
+  }
+}
+
+@keyframes live-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee var(--marquee-duration, 38s) linear infinite;
+  will-change: transform;
+}
+.group:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

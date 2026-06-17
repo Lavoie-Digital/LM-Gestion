@@ -1,0 +1,74 @@
+import { BUILDINGS } from "@/lib/data";
+import { formatCAD } from "@/lib/utils";
+import { Sparkline } from "@/components/charts/sparkline";
+
+export function PropertiesTable() {
+  return (
+    <section
+      id="immeubles"
+      className="scroll-mt-24 overflow-hidden rounded-[4px] border border-line bg-white"
+    >
+      <div className="flex items-center justify-between border-b border-line px-6 py-5">
+        <div>
+          <h2 className="font-display text-xl tracking-tight">Immeubles</h2>
+          <p className="mt-1 text-xs text-smoke">{BUILDINGS.length} actifs sous gestion</p>
+        </div>
+        <span className="mono text-[0.6rem] uppercase tracking-[0.16em] text-smoke">
+          Mis à jour à l'instant
+        </span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left">
+          <thead>
+            <tr className="border-b border-line text-[0.6rem] uppercase tracking-[0.14em] text-smoke">
+              <th className="px-6 py-3 font-medium">Immeuble</th>
+              <th className="px-6 py-3 font-medium">Logements</th>
+              <th className="px-6 py-3 font-medium">Occupation</th>
+              <th className="px-6 py-3 text-right font-medium">Revenu mensuel</th>
+              <th className="px-6 py-3 text-right font-medium">Tendance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {BUILDINGS.map((b) => (
+              <tr
+                key={b.name}
+                className="border-b border-line-soft transition-colors last:border-0 hover:bg-paper-2/60"
+              >
+                <td className="px-6 py-4">
+                  <p className="font-medium text-ink">{b.name}</p>
+                  <p className="mt-0.5 text-xs text-smoke">{b.neighborhood}</p>
+                </td>
+                <td className="px-6 py-4 text-sm text-ink/80 tabular">
+                  {b.occupied}
+                  <span className="text-smoke">/{b.units}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-1.5 w-20 overflow-hidden rounded-full bg-paper-3">
+                      <div
+                        className="h-full rounded-full bg-ink"
+                        style={{ width: `${b.occupancy}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-ink/70 tabular">
+                      {b.occupancy.toFixed(1).replace(".", ",")} %
+                    </span>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-right text-sm font-medium text-ink tabular">
+                  {formatCAD(b.monthlyRevenue)}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex justify-end">
+                    <Sparkline data={b.spark} width={84} height={26} className="text-ink/40" />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
