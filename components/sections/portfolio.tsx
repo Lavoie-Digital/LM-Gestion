@@ -6,7 +6,7 @@ function PropertyCard({ property }: { property: Property }) {
   return (
     <StaggerItem
       as="figure"
-      className="group relative overflow-hidden rounded-[2px] border border-line bg-paper-2"
+      className="group relative self-start overflow-hidden rounded-[2px] border border-line bg-paper-2"
     >
       <div className="relative aspect-[4/5] overflow-hidden">
         <Image

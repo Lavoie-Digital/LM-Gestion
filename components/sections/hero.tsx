@@ -71,7 +71,7 @@ export function Hero() {
 
       {/* Headline + CTA */}
       <motion.div
-        className="shell relative z-10 flex flex-1 flex-col justify-center pb-20 pt-12"
+        className="shell relative z-10 flex flex-1 flex-col items-center justify-center pb-20 pt-12 text-center"
         style={reduce ? undefined : { y: contentY, opacity: contentOpacity }}
       >
         <SignatureLogo className="mb-8 text-paper" />

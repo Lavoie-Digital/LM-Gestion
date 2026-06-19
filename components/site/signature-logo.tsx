@@ -20,7 +20,7 @@ export function SignatureLogo({ className }: { className?: string }) {
   });
 
   return (
-    <div className={cn("inline-flex flex-col items-start text-current", className)}>
+    <div className={cn("inline-flex flex-col items-center text-current", className)}>
       {/* Roofline — the navbar's double gable, revealed by a clip wipe */}
       <motion.div {...wipe(0.2, 1.1)}>
         <svg
