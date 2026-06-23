@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { HERO_IMAGE } from "@/lib/data";
 import { easeLux } from "@/lib/motion";
@@ -13,6 +13,20 @@ const HEADLINE = ["Votre patrimoine", "mérite une gestion", "d'exception."];
 export function Hero() {
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
+
+  // On phones the scroll-linked parallax that fades/lifts the hero away feels
+  // janky and "hides" the content too early, so we disable it below ~768px and
+  // only keep the entrance animations.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  const noParallax = reduce || isMobile;
+
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start start", "end start"],
@@ -30,7 +44,7 @@ export function Hero() {
       {/* Full-bleed architecture */}
       <motion.div
         className="absolute inset-0"
-        style={reduce ? undefined : { y: imgY, scale: imgScale }}
+        style={noParallax ? undefined : { y: imgY, scale: imgScale }}
       >
         <motion.div
           className="absolute inset-0"
@@ -72,7 +86,7 @@ export function Hero() {
       {/* Headline + CTA */}
       <motion.div
         className="shell relative z-10 flex flex-1 flex-col items-center justify-center pb-20 pt-12 text-center"
-        style={reduce ? undefined : { y: contentY, opacity: contentOpacity }}
+        style={noParallax ? undefined : { y: contentY, opacity: contentOpacity }}
       >
         <SignatureLogo className="mb-8 text-paper" />
 

@@ -12,8 +12,13 @@ export const springSoft: Transition = {
   mass: 0.6,
 };
 
-/** Default scroll-reveal trigger — fires once, a touch before fully in view. */
-export const viewportOnce = { once: true, amount: 0.35, margin: "0px 0px -8% 0px" };
+/**
+ * Default scroll-reveal trigger — fires once, a touch before fully in view.
+ * `amount` is kept low so containers taller than the viewport (e.g. the
+ * single-column portfolio grid on mobile) can still reach the threshold and
+ * reveal; a higher value leaves tall sections stuck invisible on phones.
+ */
+export const viewportOnce = { once: true, amount: 0.1, margin: "0px 0px -8% 0px" };
 
 /** Fade + rise. Accepts an index via custom for stagger delays. */
 export const fadeUp: Variants = {
