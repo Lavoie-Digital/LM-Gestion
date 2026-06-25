@@ -72,7 +72,7 @@ export function Hero() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.9, ease: easeLux, delay: 0.15 }}
-        className="shell relative z-10 flex items-center justify-between gap-4 pt-28 md:pt-32"
+        className="shell absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-4 pt-20 md:pt-24"
       >
         <span className="flex items-center gap-3">
           <span className="h-px w-8 bg-paper/40" />
@@ -85,12 +85,12 @@ export function Hero() {
 
       {/* Headline + CTA */}
       <motion.div
-        className="shell relative z-10 flex flex-1 flex-col items-center justify-center pb-20 pt-12 text-center"
+        className="shell relative z-10 flex flex-1 flex-col items-center justify-center pb-5 pt-4 text-center"
         style={noParallax ? undefined : { y: contentY, opacity: contentOpacity }}
       >
-        <SignatureLogo className="mb-8 text-paper" />
+        <SignatureLogo className="mb-4 text-paper" />
 
-        <h1 className="max-w-4xl font-display text-[clamp(2.5rem,7vw,6rem)] font-light leading-[0.98] tracking-[-0.03em]">
+        <h1 className="max-w-4xl font-display text-[clamp(1.9rem,min(6vw,8vh),4.5rem)] font-light leading-[1.02] tracking-[-0.03em]">
           {HEADLINE.map((line, i) => (
             <span key={i} className="block overflow-hidden">
               <motion.span
@@ -109,7 +109,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: easeLux, delay: 0.7 }}
-          className="mt-8 max-w-xl text-pretty text-[1.0625rem] leading-relaxed text-paper/75 md:text-lg"
+          className="mt-4 max-w-xl text-pretty text-[1.0625rem] leading-relaxed text-paper/75 md:text-lg"
         >
           Chez LM Gestion, nous prenons en charge tous les aspects de la gestion de votre
           immeuble afin d'offrir un service clé en main et une tranquillité d'esprit à nos
@@ -120,7 +120,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: easeLux, delay: 0.85 }}
-          className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center"
+          className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center"
         >
           <ButtonLink href="/services" variant="light" size="lg">
             Découvrir nos services
