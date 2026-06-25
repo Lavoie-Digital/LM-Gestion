@@ -11,10 +11,9 @@ type Figure = {
 };
 
 const FIGURES: Figure[] = [
-  { to: 850, decimals: 0, suffix: "+", label: "Logements sous gestion" },
-  { to: 98.6, decimals: 1, suffix: " %", label: "Occupation moyenne" },
-  { to: 21, decimals: 0, suffix: " j", label: "Délai moyen de location" },
-  { to: 14, decimals: 0, suffix: " M$+", label: "Loyers administrés / an" },
+  { to: 511, decimals: 0, suffix: "", label: "Logements sous gestion" },
+  { to: 98, decimals: 0, suffix: " %", label: "Occupation moyenne" },
+  { to: 5.77, decimals: 2, suffix: " M$", label: "Loyers administrés / an" },
   { to: 4.9, decimals: 1, suffix: "/5", label: "Satisfaction propriétaires" },
 ];
 
@@ -28,7 +27,7 @@ export function Stats() {
   return (
     <section className="relative overflow-hidden border-y border-line-dark bg-ink text-paper">
       <div className="grid-faint absolute inset-0 opacity-30" aria-hidden />
-      <Stagger className="shell relative grid grid-cols-2 gap-y-12 py-16 sm:grid-cols-3 md:py-20 lg:grid-cols-5 lg:gap-0">
+      <Stagger className="shell relative grid grid-cols-2 gap-y-12 py-16 sm:grid-cols-2 md:py-20 lg:grid-cols-4 lg:gap-0">
         {FIGURES.map((f, i) => (
           <StaggerItem
             key={f.label}

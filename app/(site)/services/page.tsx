@@ -6,7 +6,7 @@ import { CTA } from "@/components/sections/cta";
 export const metadata: Metadata = {
   title: "Services",
   description:
-    "Gestion locative complète, optimisation des revenus par l'IA, entretien, sélection des locataires, reddition de comptes et conseil en investissement au Saguenay.",
+    "Service clé en main, optimisation des revenus par l'IA, entretien et travaux, service de location, et consultation en gestion immobilière au Saguenay.",
 };
 
 export default function ServicesPage() {

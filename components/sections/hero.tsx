@@ -79,7 +79,7 @@ export function Hero() {
           <span className="kicker text-paper/70">Saguenay · Québec</span>
         </span>
         <span className="mono text-[0.6rem] uppercase tracking-[0.22em] text-paper/45">
-          Maison de gestion privée · Est. 2012
+          Maison de gestion privée · Est. 2023
         </span>
       </motion.div>
 
@@ -111,8 +111,9 @@ export function Hero() {
           transition={{ duration: 0.9, ease: easeLux, delay: 0.7 }}
           className="mt-8 max-w-xl text-pretty text-[1.0625rem] leading-relaxed text-paper/75 md:text-lg"
         >
-          LM Gestion Immobilière administre les immeubles les plus convoités du Saguenay —
-          avec la rigueur d'un service privé et la précision de la donnée.
+          Chez LM Gestion, nous prenons en charge tous les aspects de la gestion de votre
+          immeuble afin d'offrir un service clé en main et une tranquillité d'esprit à nos
+          propriétaires comme à nos locataires.
         </motion.p>
 
         <motion.div

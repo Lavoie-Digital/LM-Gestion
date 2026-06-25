@@ -1,278 +1,187 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowDown,
   ArrowUp,
   Check,
-  Clock,
-  Gauge,
+  Globe,
   Loader2,
-  MapPin,
-  RefreshCw,
+  Minus,
+  ScanText,
+  Search,
   Sparkles,
   TrendingUp,
 } from "lucide-react";
-import { AI_SUMMARY, VACANT_UNITS, type VacantUnit } from "@/lib/data";
+import {
+  NEIGHBORHOODS,
+  UNIT_TYPES,
+  type MarketResult,
+} from "@/lib/market";
 import { cn, formatCAD } from "@/lib/utils";
 import { easeLux } from "@/lib/motion";
-import { AnimatedNumber } from "@/components/ui/animated-number";
 
-const STEPS = [
-  "Lecture des annonces comparables du marché",
-  "Analyse des annonces du secteur",
-  "Filtrage des comparables pertinents",
-  "Calcul du potentiel de revenu",
-];
-const STEP_AT = [8, 38, 68, 92];
-const pct = (n: number) => `${n.toFixed(1).replace(".", ",")} %`;
+type Status = "idle" | "loading" | "done" | "error";
 
-/* ---- left list ---- */
-function UnitButton({
-  unit,
-  active,
-  onClick,
+/* ---- segmented selector ---- */
+function Segmented<T extends { id: string; label: string }>({
+  label,
+  options,
+  value,
+  onChange,
+  disabled,
 }: {
-  unit: VacantUnit;
-  active: boolean;
-  onClick: () => void;
+  label: string;
+  options: readonly T[];
+  value: string;
+  onChange: (id: string) => void;
+  disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "w-full rounded-[4px] border p-4 text-left transition-colors duration-300",
-        active
-          ? "border-paper/30 bg-paper/[0.06]"
-          : "border-line-dark hover:border-paper/20 hover:bg-paper/[0.03]"
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-paper">
-          {unit.building} <span className="text-ash">{unit.unit}</span>
-        </span>
-        <span className="mono shrink-0 rounded-full border border-line-dark px-2 py-0.5 text-[0.55rem] uppercase tracking-wide text-ash">
-          {unit.type}
-        </span>
+    <div>
+      <p className="mono mb-2 text-[0.55rem] uppercase tracking-[0.16em] text-ash">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(o.id)}
+            className={cn(
+              "rounded-[4px] border px-3.5 py-2 text-sm transition-colors disabled:opacity-50",
+              o.id === value
+                ? "border-paper/40 bg-paper/[0.08] text-paper"
+                : "border-line-dark text-ash hover:border-paper/20 hover:text-paper/90"
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
       </div>
-      <div className="mt-2.5 flex items-end justify-between">
-        <span className="text-xs text-ash">Vacant depuis {unit.vacantDays} j</span>
-        <span className="inline-flex items-center gap-1 font-[family-name:var(--font-jetbrains)] text-xs text-paper/90">
-          <ArrowUp className="size-3" />
-          {formatCAD(unit.ai.target)}
-          <span className="text-ash">/mois</span>
-        </span>
-      </div>
-    </button>
+    </div>
   );
 }
 
-/* ---- scanning overlay ---- */
-function ScanOverlay({ progress }: { progress: number }) {
-  const scanned = Math.round((progress / 100) * AI_SUMMARY.listingsScanned);
+/* ---- result panel ---- */
+function ResultView({ result }: { result: MarketResult }) {
+  if (result.sampleSize === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex min-h-[16rem] flex-col items-center justify-center px-6 py-10 text-center"
+      >
+        <p className="font-display text-xl tracking-tight text-paper">Aucune annonce trouvée</p>
+        <p className="mt-2 max-w-sm text-sm text-ash">{result.summary}</p>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-      className="flex min-h-[26rem] flex-col justify-center px-6 py-10"
-    >
-      <div className="mx-auto w-full max-w-md">
-        <div className="flex items-center gap-3 text-paper">
-          <Loader2 className="size-5 animate-spin" />
-          <span className="font-display text-xl tracking-tight">Analyse du marché en cours…</span>
-        </div>
-
-        <div className="mt-7 h-1 w-full overflow-hidden rounded-full bg-paper/10">
-          <motion.div
-            className="h-full rounded-full bg-paper"
-            style={{ width: `${progress}%` }}
-            transition={{ ease: "linear" }}
-          />
-        </div>
-        <div className="mt-2.5 flex items-center justify-between font-[family-name:var(--font-jetbrains)] text-[0.65rem] uppercase tracking-wider text-ash">
-          <span>{scanned.toLocaleString("fr-CA")} / {AI_SUMMARY.listingsScanned.toLocaleString("fr-CA")} annonces</span>
-          <span>{Math.round(progress)} %</span>
-        </div>
-
-        <ul className="mt-7 flex flex-col gap-3">
-          {STEPS.map((step, i) => {
-            const done = progress >= STEP_AT[i] + 6;
-            const active = progress >= STEP_AT[i] && !done;
-            return (
-              <li
-                key={step}
-                className={cn(
-                  "flex items-center gap-3 text-sm transition-colors",
-                  done ? "text-paper/85" : active ? "text-paper" : "text-ash/50"
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex size-5 items-center justify-center rounded-full border",
-                    done
-                      ? "border-paper/40 bg-paper/10"
-                      : active
-                        ? "border-paper/40"
-                        : "border-line-dark"
-                  )}
-                >
-                  {done ? (
-                    <Check className="size-3" />
-                  ) : active ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : null}
-                </span>
-                {step}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ---- result detail ---- */
-function Detail({ unit }: { unit: VacantUnit }) {
-  const ai = unit.ai;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: easeLux }}
+      transition={{ duration: 0.5, ease: easeLux }}
       className="p-6"
     >
-      {/* headline numbers */}
+      {/* headline */}
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <p className="mono text-[0.6rem] uppercase tracking-[0.16em] text-ash">
-            Loyer recommandé · {unit.building} {unit.unit}
+            Loyer du marché · {result.unitTypeLabel} · {result.neighborhoodLabel}
           </p>
-          <p className="mt-2 font-display text-[clamp(2.4rem,5vw,3.5rem)] font-light leading-none tracking-tight text-paper tabular">
-            <AnimatedNumber value={ai.target} format={formatCAD} />
+          <p className="mt-2 font-display text-[clamp(2.4rem,5vw,3.4rem)] font-light leading-none tracking-tight text-paper tabular">
+            {formatCAD(result.marketPrice)}
             <span className="ml-2 align-baseline text-base text-ash">/ mois</span>
           </p>
           <p className="mt-3 text-sm text-ash">
-            Fourchette {formatCAD(ai.recommendedLow)} – {formatCAD(ai.recommendedHigh)} ·{" "}
+            Fourchette {formatCAD(result.low)} – {formatCAD(result.high)} ·{" "}
             <span className="inline-flex items-center gap-1 text-paper/90">
-              <TrendingUp className="size-3.5" /> +{pct(ai.marketDelta)} vs dernier loyer (
-              {formatCAD(unit.lastRent)})
+              <TrendingUp className="size-3.5" /> médiane {formatCAD(result.median)}
             </span>
           </p>
         </div>
 
-        <div className="rounded-[4px] border border-paper/20 bg-paper/[0.04] px-5 py-4 text-right">
-          <p className="mono text-[0.55rem] uppercase tracking-[0.16em] text-ash">
-            Potentiel annuel
-          </p>
-          <p className="mt-1.5 font-display text-2xl tracking-tight text-paper tabular">
-            <AnimatedNumber value={ai.potentialAnnual} format={formatCAD} />
-          </p>
-        </div>
-      </div>
-
-      {/* metrics row */}
-      <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="rounded-[4px] border border-line-dark p-4">
-          <p className="inline-flex items-center gap-1.5 text-[0.6rem] uppercase tracking-wide text-ash">
-            <Gauge className="size-3" /> Confiance IA
-          </p>
-          <div className="mt-2.5 flex items-center gap-2.5">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper/10">
-              <div className="h-full rounded-full bg-paper" style={{ width: `${ai.confidence}%` }} />
-            </div>
-            <span className="font-[family-name:var(--font-jetbrains)] text-xs text-paper">
-              {ai.confidence} %
-            </span>
+        <div className="flex gap-3">
+          <div className="rounded-[4px] border border-line-dark px-4 py-3 text-right">
+            <p className="mono text-[0.5rem] uppercase tracking-wide text-ash">Annonces</p>
+            <p className="mt-1 font-display text-2xl tracking-tight text-paper tabular">
+              {result.sampleSize}
+            </p>
           </div>
-        </div>
-        <div className="rounded-[4px] border border-line-dark p-4">
-          <p className="inline-flex items-center gap-1.5 text-[0.6rem] uppercase tracking-wide text-ash">
-            <Clock className="size-3" /> Location estimée
-          </p>
-          <p className="mt-2 font-display text-xl tracking-tight text-paper">
-            {ai.daysToLease} <span className="text-sm text-ash">jours</span>
-          </p>
-        </div>
-        <div className="col-span-2 rounded-[4px] border border-line-dark p-4 sm:col-span-1">
-          <p className="text-[0.6rem] uppercase tracking-wide text-ash">Demande du marché</p>
-          <p className="mt-2 font-display text-xl tracking-tight text-paper">{ai.demand}</p>
+          <div className="rounded-[4px] border border-line-dark px-4 py-3 text-right">
+            <p className="mono text-[0.5rem] uppercase tracking-wide text-ash">Demande</p>
+            <p className="mt-1 font-display text-2xl tracking-tight text-paper">{result.demand}</p>
+          </div>
         </div>
       </div>
 
       {/* summary */}
-      <p className="mt-6 text-pretty text-sm leading-relaxed text-ash">{ai.summary}</p>
+      <p className="mt-6 text-pretty text-sm leading-relaxed text-ash">{result.summary}</p>
 
       {/* drivers */}
-      <div className="mt-6">
-        <p className="mono text-[0.6rem] uppercase tracking-[0.16em] text-ash">
-          Facteurs de prix
-        </p>
-        <ul className="mt-3 flex flex-wrap gap-2">
-          {ai.drivers.map((d) => (
-            <li
-              key={d.label}
-              className="inline-flex items-center gap-2 rounded-full border border-line-dark px-3 py-1.5 text-xs text-paper/85"
-            >
-              {d.impact === "up" ? (
-                <ArrowUp className="size-3 text-paper" />
-              ) : (
-                <ArrowDown className="size-3 text-ash" />
-              )}
-              {d.label}
-              <span className="text-ash">· {d.note}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* comparables */}
-      <div className="mt-8">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="mono text-[0.6rem] uppercase tracking-[0.16em] text-ash">
-            Comparables du marché
-          </p>
-          <span className="mono text-[0.55rem] uppercase tracking-wide text-ash/70">
-            Analyse en continu
-          </span>
+      {result.drivers.length > 0 && (
+        <div className="mt-6">
+          <p className="mono text-[0.6rem] uppercase tracking-[0.16em] text-ash">Facteurs de prix</p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {result.drivers.map((d) => (
+              <li
+                key={d.label}
+                className="inline-flex items-center gap-2 rounded-full border border-line-dark px-3 py-1.5 text-xs text-paper/85"
+              >
+                {d.impact === "up" ? (
+                  <ArrowUp className="size-3 text-paper" />
+                ) : d.impact === "down" ? (
+                  <ArrowDown className="size-3 text-ash" />
+                ) : (
+                  <Minus className="size-3 text-ash" />
+                )}
+                {d.label}
+                {d.note && <span className="text-ash">· {d.note}</span>}
+              </li>
+            ))}
+          </ul>
         </div>
+      )}
+
+      {/* comps */}
+      <div className="mt-8">
+        <p className="mono mb-3 text-[0.6rem] uppercase tracking-[0.16em] text-ash">
+          Annonces comparables (sources Web)
+        </p>
         <div className="overflow-x-auto rounded-[4px] border border-line-dark">
-          <table className="w-full min-w-[560px] text-left text-sm">
+          <table className="w-full min-w-[420px] text-left text-sm">
             <thead>
               <tr className="border-b border-line-dark text-[0.55rem] uppercase tracking-[0.12em] text-ash">
                 <th className="px-4 py-3 font-medium">Annonce</th>
-                <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 text-right font-medium">Loyer</th>
-                <th className="px-4 py-3 text-right font-medium">Dist.</th>
-                <th className="px-4 py-3 text-right font-medium">Corresp.</th>
               </tr>
             </thead>
             <tbody>
-              {ai.comps.map((c, i) => (
+              {result.comps.map((c, i) => (
                 <tr key={i} className="border-b border-line-dark/60 last:border-0">
                   <td className="px-4 py-3">
-                    <p className="text-paper/90">{c.title}</p>
-                    <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-ash">
-                      <MapPin className="size-3" /> {c.neighborhood} · publié il y a {c.postedDaysAgo} j
-                    </p>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-ash">
-                    {c.beds} · {c.sqft} pi²
+                    {c.url ? (
+                      <a
+                        href={c.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-paper/90 underline-offset-2 hover:underline"
+                      >
+                        {c.title}
+                      </a>
+                    ) : (
+                      <span className="text-paper/90">{c.title}</span>
+                    )}
+                    {c.location && (
+                      <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-ash">
+                        <Globe className="size-3" /> {c.location}
+                      </p>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right text-paper/90 tabular">
                     {formatCAD(c.price)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-ash tabular">
-                    {c.distanceKm.toFixed(1).replace(".", ",")} km
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="font-[family-name:var(--font-jetbrains)] text-xs text-paper">
-                      {c.match} %
-                    </span>
                   </td>
                 </tr>
               ))}
@@ -284,137 +193,244 @@ function Detail({ unit }: { unit: VacantUnit }) {
   );
 }
 
-export function AiAnalysis() {
-  const reduce = useReducedMotion();
-  const [selectedId, setSelectedId] = useState(VACANT_UNITS[0].id);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [progress, setProgress] = useState(100);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+/* ---- intelligent staged loader ---- */
+const LOADING_STEPS = [
+  { icon: Search, label: "Recherche des annonces en ligne" },
+  { icon: ScanText, label: "Lecture IA des pages trouvées" },
+  { icon: Sparkles, label: "Analyse du marché par l'IA" },
+];
 
-  const selected = VACANT_UNITS.find((u) => u.id === selectedId) ?? VACANT_UNITS[0];
+function LoadingView() {
+  const [progress, setProgress] = useState(4);
 
-  const runAnalysis = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    if (reduce) {
-      setProgress(100);
-      setAnalyzing(false);
-      return;
-    }
-    setAnalyzing(true);
-    setProgress(0);
-    intervalRef.current = setInterval(() => {
-      setProgress((p) => {
-        const next = p + (p < 65 ? 2.6 : 4.2);
-        if (next >= 100) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          setAnalyzing(false);
-          return 100;
-        }
-        return next;
-      });
-    }, 55);
-  }, [reduce]);
-
-  // auto-run once on mount
   useEffect(() => {
-    runAnalysis();
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [runAnalysis]);
+    // Avance régulièrement jusqu'à ~96 % (la requête réelle prend ~8-15 s) ;
+    // le parent retire ce loader dès que la réponse arrive.
+    const id = setInterval(() => {
+      setProgress((p) => (p >= 96 ? 96 : p + 1));
+    }, 150);
+    return () => clearInterval(id);
+  }, []);
 
-  function select(id: string) {
-    setSelectedId(id);
-    runAnalysis();
+  const active = progress < 34 ? 0 : progress < 76 ? 1 : 2;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="flex min-h-[18rem] flex-col justify-center px-6 py-10"
+    >
+      <div className="mx-auto w-full max-w-md">
+        <div className="flex items-center gap-3 text-paper">
+          <Loader2 className="size-5 animate-spin" />
+          <span className="font-display text-xl tracking-tight">Analyse du marché en cours…</span>
+        </div>
+
+        <div className="mt-7 h-1 w-full overflow-hidden rounded-full bg-paper/10">
+          <motion.div
+            className="h-full rounded-full bg-paper"
+            animate={{ width: `${progress}%` }}
+            transition={{ ease: "linear", duration: 0.15 }}
+          />
+        </div>
+        <div className="mt-2 text-right font-[family-name:var(--font-jetbrains)] text-[0.65rem] uppercase tracking-wider text-ash">
+          {progress} %
+        </div>
+
+        <ul className="mt-7 flex flex-col gap-3">
+          {LOADING_STEPS.map((step, i) => {
+            const done = i < active;
+            const isActive = i === active;
+            const Icon = step.icon;
+            return (
+              <li
+                key={step.label}
+                className={cn(
+                  "flex items-center gap-3 text-sm transition-colors",
+                  done ? "text-paper/80" : isActive ? "text-paper" : "text-ash/50"
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-full border transition-colors",
+                    done
+                      ? "border-paper/40 bg-paper/10"
+                      : isActive
+                        ? "border-paper/50"
+                        : "border-line-dark"
+                  )}
+                >
+                  {done ? (
+                    <Check className="size-3.5" />
+                  ) : isActive ? (
+                    <Icon className="size-3.5 animate-pulse" />
+                  ) : (
+                    <Icon className="size-3.5" />
+                  )}
+                </span>
+                {step.label}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </motion.div>
+  );
+}
+
+export function AiAnalysis() {
+  const [neighborhoodId, setNeighborhoodId] = useState(NEIGHBORHOODS[0].id);
+  const [unitTypeId, setUnitTypeId] = useState(UNIT_TYPES[1].id);
+  const [status, setStatus] = useState<Status>("idle");
+  const [result, setResult] = useState<MarketResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loading = status === "loading";
+
+  async function runAnalysis() {
+    setStatus("loading");
+    setError(null);
+    const t0 = performance.now();
+    const tag = "[analyse-marché]";
+    console.log(`${tag} ▶ Lancement`, { neighborhoodId, unitTypeId });
+    try {
+      const res = await fetch("/api/market-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ neighborhoodId, unitTypeId }),
+      });
+      const ms = Math.round(performance.now() - t0);
+      const data = await res.json();
+      console.log(`${tag} Réponse HTTP ${res.status} en ${ms} ms`);
+      if (!res.ok) throw new Error(data.error || "L'analyse a échoué.");
+
+      const r = data as MarketResult;
+      console.log(
+        `${tag} ✔ ${r.neighborhoodLabel} · ${r.unitTypeLabel} — loyer marché ${r.marketPrice} $/mois`,
+        {
+          médiane: r.median,
+          fourchette: `${r.low}–${r.high} $`,
+          annonces: r.sampleSize,
+          demande: r.demand,
+        }
+      );
+      console.log(`${tag} Résumé :`, r.summary);
+      if (r.comps?.length) {
+        console.log(`${tag} ${r.comps.length} annonce(s) comparable(s) :`);
+        console.table(
+          r.comps.map((c) => ({
+            prix: c.price,
+            source: c.location ?? "",
+            titre: c.title,
+            url: c.url ?? "",
+          }))
+        );
+      }
+      console.log(`${tag} Objet complet :`, r);
+
+      setResult(r);
+      setStatus("done");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erreur inattendue.";
+      console.error(`${tag} ✖ Échec :`, msg);
+      setError(msg);
+      setStatus("error");
+    }
   }
 
   return (
     <section
       id="analyse-ia"
-      className="relative scroll-mt-24 overflow-hidden rounded-[6px] border border-line-dark bg-noir text-paper"
+      className="scroll-mt-24 overflow-hidden rounded-[6px] border border-line-dark bg-noir text-paper"
     >
-      <div className="grid-faint absolute inset-0 opacity-30" aria-hidden />
-
       {/* header */}
-      <div className="relative flex flex-col gap-5 border-b border-line-dark p-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="inline-flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.18em] text-paper/80">
-            <Sparkles className="size-3.5" /> Analyse IA · Potentiel des logements vacants
-          </p>
-          <h2 className="mt-3 font-display text-[clamp(1.6rem,3vw,2.2rem)] tracking-tight">
-            Révélez le revenu dormant de votre parc.
-          </h2>
-          <p className="mt-2 max-w-xl text-sm text-ash">
-            Notre IA compare chaque logement vacant aux annonces comparables du marché
-            pour recommander le juste loyer et estimer son potentiel.
-          </p>
-        </div>
+      <div className="border-b border-line-dark p-6">
+        <p className="inline-flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.18em] text-paper/80">
+          <Sparkles className="size-3.5" /> Analyse de marché · IA
+        </p>
+        <h2 className="mt-3 font-display text-[clamp(1.6rem,3vw,2.2rem)] tracking-tight">
+          Le juste loyer, secteur par secteur.
+        </h2>
+        <p className="mt-2 max-w-xl text-sm text-ash">
+          Choisissez un quartier et un type de logement. Notre IA agrège les annonces de location
+          publiées en ligne (LesPAC, Logis Québec, DuProprio, Centris…) et estime le prix du marché.
+        </p>
+      </div>
 
-        <div className="flex shrink-0 gap-3">
-          <div className="rounded-[4px] border border-line-dark px-4 py-3">
-            <p className="mono text-[0.5rem] uppercase tracking-wide text-ash">Potentiel mensuel</p>
-            <p className="mt-1 font-display text-lg tracking-tight tabular">
-              +{formatCAD(AI_SUMMARY.potentialMonthly)}
-            </p>
-          </div>
-          <div className="rounded-[4px] border border-line-dark px-4 py-3">
-            <p className="mono text-[0.5rem] uppercase tracking-wide text-ash">Logements</p>
-            <p className="mt-1 font-display text-lg tracking-tight tabular">
-              {AI_SUMMARY.prioritized}
-              <span className="text-sm text-ash">/{AI_SUMMARY.vacantTotal}</span>
-            </p>
-          </div>
+      {/* controls */}
+      <div className="flex flex-col gap-5 border-b border-line-dark p-6">
+        <Segmented
+          label="Quartier"
+          options={NEIGHBORHOODS}
+          value={neighborhoodId}
+          onChange={setNeighborhoodId}
+          disabled={loading}
+        />
+        <Segmented
+          label="Type de logement"
+          options={UNIT_TYPES}
+          value={unitTypeId}
+          onChange={setUnitTypeId}
+          disabled={loading}
+        />
+        <div>
+          <button
+            type="button"
+            onClick={runAnalysis}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-[4px] bg-paper px-5 py-2.5 text-sm font-medium text-ink transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Search className="size-4" />
+            )}
+            {loading ? "Analyse en cours…" : "Analyser le marché"}
+          </button>
         </div>
       </div>
 
-      {/* body */}
-      <div className="relative grid lg:grid-cols-[300px_1fr]">
-        {/* unit list */}
-        <div className="border-b border-line-dark p-4 lg:border-b-0 lg:border-r">
-          <div className="mb-3 flex items-center justify-between px-1">
-            <p className="mono text-[0.55rem] uppercase tracking-[0.16em] text-ash">
-              Logements priorisés
-            </p>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-            {VACANT_UNITS.map((u) => (
-              <div key={u.id} className="w-[230px] shrink-0 lg:w-auto">
-                <UnitButton
-                  unit={u}
-                  active={u.id === selectedId}
-                  onClick={() => select(u.id)}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* detail / scan */}
-        <div className="relative">
-          {/* re-run control */}
-          <div className="flex items-center justify-between border-b border-line-dark px-6 py-3">
-            <span className="mono text-[0.55rem] uppercase tracking-[0.16em] text-ash">
-              {analyzing ? "Traitement…" : "Analyse à jour"}
-            </span>
-            <button
-              type="button"
-              onClick={() => runAnalysis()}
-              disabled={analyzing}
-              className="inline-flex items-center gap-2 rounded-[3px] border border-paper/25 px-3.5 py-2 text-xs font-medium text-paper transition-colors hover:bg-paper hover:text-ink disabled:opacity-50"
+      {/* result */}
+      <div className="min-h-[12rem]">
+        <AnimatePresence mode="wait">
+          {status === "idle" && (
+            <motion.div
+              key="idle"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex min-h-[12rem] items-center justify-center px-6 py-10 text-center text-sm text-ash"
             >
-              <RefreshCw className={cn("size-3.5", analyzing && "animate-spin")} />
-              {analyzing ? "Analyse…" : "Relancer l'analyse"}
-            </button>
-          </div>
+              Lancez une analyse pour afficher le prix du marché.
+            </motion.div>
+          )}
 
-          <AnimatePresence mode="wait">
-            {analyzing ? (
-              <ScanOverlay key="scan" progress={progress} />
-            ) : (
-              <Detail key={selected.id} unit={selected} />
-            )}
-          </AnimatePresence>
-        </div>
+          {loading && <LoadingView key="loading" />}
+
+          {status === "error" && (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex min-h-[12rem] flex-col items-center justify-center gap-2 px-6 py-10 text-center"
+            >
+              <p className="font-display text-lg tracking-tight text-paper">Analyse impossible</p>
+              <p className="max-w-sm text-sm text-ash">{error}</p>
+              <button
+                type="button"
+                onClick={runAnalysis}
+                className="mt-2 rounded-[3px] border border-paper/25 px-3.5 py-2 text-xs font-medium text-paper transition-colors hover:bg-paper hover:text-ink"
+              >
+                Réessayer
+              </button>
+            </motion.div>
+          )}
+
+          {status === "done" && result && <ResultView key="done" result={result} />}
+        </AnimatePresence>
       </div>
     </section>
   );

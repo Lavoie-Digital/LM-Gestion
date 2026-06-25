@@ -21,7 +21,7 @@ export function Firme() {
             <div className="absolute inset-0 bg-gradient-to-t from-noir/55 via-transparent to-transparent" />
             <figcaption className="absolute inset-x-0 bottom-0 p-6 text-paper">
               <span className="block font-display text-xl leading-none tracking-tight">
-                La fondatrice
+                Fondatrice et PDG
               </span>
               <span className="mono mt-2 block text-[0.6rem] uppercase tracking-[0.2em] text-paper/70">
                 LM Gestion Immobilière
@@ -42,46 +42,44 @@ export function Firme() {
 
           <Reveal delay={0.08}>
             <h2 className="mt-7 text-balance font-display text-[clamp(1.85rem,3.4vw,2.9rem)] font-light leading-[1.1] tracking-tight">
-              Nous sommes des passionnés de gestion immobilière{" "}
-              <span className="italic">intégrée</span>.
+              Nous gérons chaque immeuble comme s'il était{" "}
+              <span className="italic">le nôtre</span>.
             </h2>
           </Reveal>
 
           <Reveal delay={0.14}>
             <p className="mt-6 text-pretty text-[1.0625rem] leading-relaxed text-smoke">
-              Nous offrons l'ensemble des services requis pour administrer tout parc
-              immobilier résidentiel — d'un premier plex à un portefeuille d'immeubles de
-              prestige, du plus simple au plus complexe.
+              LM Gestion est une entreprise créée avec la conviction qu'une gestion immobilière
+              efficace repose sur la rigueur, la communication et un service de proximité.
             </p>
           </Reveal>
 
           <Reveal delay={0.2}>
             <h3 className="mt-12 font-display text-xl tracking-tight sm:text-2xl">
-              Notre vision de la gestion
+              Notre engagement
             </h3>
           </Reveal>
 
           <div className="mt-5 flex flex-col gap-4 text-pretty leading-relaxed text-smoke">
             <Reveal delay={0.24}>
               <p>
-                La maison a été fondée avec l'idée que bien gérer un immeuble exige de réunir
-                tous les intervenants autour d'une même table ; le travail en silo mène
-                inévitablement à des coûts d'exploitation élevés, à des décisions mal
-                coordonnées et à un actif qui rend en deçà de son plein potentiel.
+                Ma mission est d'offrir aux propriétaires un service clé en main qui leur
+                permet de maximiser la valeur de leurs investissements tout en leur procurant
+                une réelle tranquillité d'esprit.
               </p>
             </Reveal>
             <Reveal delay={0.28}>
               <p>
-                LM s'implique dans chaque mandat comme un véritable vecteur de coordination.
-                Nos gestionnaires conjuguent la maîtrise technique de l'entretien et des baux
-                à une vision d'ensemble de la rentabilité de votre parc.
+                Chez LM Gestion, nous gérons chaque immeuble comme s'il était le nôtre. Nous
+                assurons la coordination de tous les intervenants, le suivi des opérations
+                quotidiennes et l'entretien des bâtiments afin d'offrir un environnement de
+                qualité aux locataires et une gestion sans souci aux propriétaires.
               </p>
             </Reveal>
             <Reveal delay={0.32}>
               <p>
-                Nous croyons que traiter chaque propriétaire, chaque locataire et chaque
-                partenaire sur un pied d'égalité optimise le flot des idées — et la valeur de
-                votre patrimoine.
+                Une gestion professionnelle, proactive et humaine, adaptée aux besoins de
+                chaque client.
               </p>
             </Reveal>
           </div>

@@ -86,19 +86,37 @@ export function ContactForm() {
               />
             </div>
 
-            <div>
-              <label htmlFor="parc" className={labelCls}>
-                Taille de votre parc
-              </label>
-              <select id="parc" name="parc" className={inputCls} defaultValue="">
-                <option value="" disabled>
-                  Sélectionnez…
-                </option>
-                <option>1 à 10 logements</option>
-                <option>11 à 50 logements</option>
-                <option>51 à 150 logements</option>
-                <option>Plus de 150 logements</option>
-              </select>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label htmlFor="parc" className={labelCls}>
+                  Taille de votre parc
+                </label>
+                <select id="parc" name="parc" className={inputCls} defaultValue="">
+                  <option value="" disabled>
+                    Sélectionnez…
+                  </option>
+                  <option>1 à 10 logements</option>
+                  <option>11 à 50 logements</option>
+                  <option>51 à 150 logements</option>
+                  <option>Plus de 150 logements</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="service" className={labelCls}>
+                  Service recherché
+                </label>
+                <select id="service" name="service" className={inputCls} defaultValue="">
+                  <option value="" disabled>
+                    Sélectionnez…
+                  </option>
+                  <option>Service clé en main</option>
+                  <option>Optimisation des revenus · IA</option>
+                  <option>Entretien & travaux</option>
+                  <option>Service de location</option>
+                  <option>Consultation et accompagnement</option>
+                  <option>Autre / à déterminer</option>
+                </select>
+              </div>
             </div>
 
             <div>

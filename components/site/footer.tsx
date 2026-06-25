@@ -1,8 +1,27 @@
 import Link from "next/link";
-import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
+import { ArrowUpRight, Clock, Mail, MapPin, Phone } from "lucide-react";
 import { COMPANY, NAV_LINKS } from "@/lib/data";
 import { Logo } from "./logo";
 import { Reveal } from "@/components/ui/reveal";
+
+/* Icônes de marque en SVG inline (absentes de cette version de lucide). */
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function TikTokIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+      <path d="M16.5 2c.3 2.1 1.5 3.8 3.5 4.2v3.1c-1.3.05-2.6-.3-3.7-1v6.6c0 3.4-2.7 6.1-6.1 6.1S4.1 18.3 4.1 14.9s2.7-6.1 6.1-6.1c.3 0 .6 0 .9.07v3.2c-.3-.1-.6-.15-.9-.15-1.7 0-3 1.3-3 3s1.3 3 3 3 3-1.3 3-3V2h2.3z" />
+    </svg>
+  );
+}
 
 export function Footer() {
   const year = 2026;
@@ -40,6 +59,46 @@ export function Footer() {
                   <MapPin className="mt-0.5 size-4 shrink-0 opacity-60" />
                   {COMPANY.address}
                 </span>
+                <span className="inline-flex items-center gap-3">
+                  <Clock className="size-4 opacity-60" />
+                  {COMPANY.hours}
+                </span>
+              </div>
+
+              {/* Réseaux sociaux */}
+              <div className="mt-7 flex items-center gap-5 text-sm text-ash">
+                {COMPANY.social.instagram && (
+                  <a
+                    href={COMPANY.social.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 transition-colors hover:text-paper"
+                  >
+                    <InstagramIcon className="size-4" />
+                    Instagram
+                  </a>
+                )}
+                {COMPANY.social.tiktok && (
+                  <a
+                    href={COMPANY.social.tiktok}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 transition-colors hover:text-paper"
+                  >
+                    <TikTokIcon className="size-4" />
+                    TikTok
+                  </a>
+                )}
+                {COMPANY.social.facebook && (
+                  <a
+                    href={COMPANY.social.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="transition-colors hover:text-paper"
+                  >
+                    Facebook
+                  </a>
+                )}
               </div>
             </div>
           </Reveal>
@@ -93,7 +152,7 @@ export function Footer() {
             © {year} {COMPANY.name}. Tous droits réservés.
           </p>
           <p className="mono uppercase tracking-[0.2em] text-ash/70">
-            Site démo · conçu au Saguenay
+            Saguenay–Lac-Saint-Jean
           </p>
           <div className="flex items-center gap-6">
             <Link href="/contact" className="transition-colors hover:text-paper">

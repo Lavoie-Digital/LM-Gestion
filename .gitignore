@@ -3,6 +3,11 @@ node_modules/
 .pnp
 .pnp.js
 
+# Python scraper
+scraper/.venv/
+__pycache__/
+*.pyc
+
 # Testing
 coverage/
 

@@ -23,10 +23,17 @@ export const COMPANY = {
   tagline: "Gestion immobilière haut de gamme",
   city: "Saguenay",
   region: "Saguenay–Lac-Saint-Jean",
-  phone: "(418) 550-0694",
+  phone: "(418) 550-0694, poste 2",
   email: "lm.gestion.immobiliere@hotmail.com",
-  address: "110, rue Racine, Chicoutimi (Québec)",
-  founded: 2012,
+  address: "110, rue Racine Est, Chicoutimi (Québec) G7H 1R1",
+  hours: "Lun – Ven, 8 h 30 à 17 h",
+  founded: 2023,
+  social: {
+    // TODO : confirmer l'URL exacte de la page Facebook avec la cliente.
+    facebook: "",
+    instagram: "https://www.instagram.com/lmgestionimmobiliere",
+    tiktok: "https://www.tiktok.com/@lm.gestion.immobi",
+  },
 };
 
 export type Service = {
@@ -40,10 +47,19 @@ export type Service = {
 export const SERVICES: Service[] = [
   {
     index: "01",
-    title: "Gestion locative complète",
+    title: "Service clé en main",
     description:
-      "De la perception des loyers à la relation locataire, nous opérons votre parc avec la rigueur d'un service privé.",
-    points: ["Perception & relances", "Rédaction et renouvellement des baux", "Relations locataires 7j/7"],
+      "La gestion complète de votre immeuble, de la perception des loyers à la relation locataire, avec un suivi rigoureux et une communication continue.",
+    points: [
+      "Perception des loyers et suivi rigoureux des paiements",
+      "Gestion des retards de paiement et des avis aux locataires",
+      "Service d'urgence et appels 24 h/24, 7 j/7",
+      "Représentation auprès du Tribunal administratif du logement (TAL)",
+      "Coordination des travaux de maintenance et de réparation",
+      "Rapport mensuel détaillé sur la gestion de l'immeuble",
+      "Visites d'inspection des lieux deux fois par année",
+      "Communication continue avec propriétaires et locataires",
+    ],
     icon: "building",
   },
   {
@@ -58,32 +74,50 @@ export const SERVICES: Service[] = [
     index: "03",
     title: "Entretien & travaux",
     description:
-      "Un réseau d'artisans sélectionnés et un suivi numérique de chaque intervention, sans compromis sur la qualité.",
-    points: ["Interventions d'urgence 24/7", "Artisans accrédités", "Suivi numérique des travaux"],
+      "Un réseau d'artisans fiable et un partenariat solide avec un entrepreneur général pour préserver la valeur de vos bâtiments.",
+    points: [
+      "Réparations générales (plomberie, électricité, portes, fenêtres, serrures)",
+      "Entretien préventif des aires communes et des systèmes",
+      "Rénovation entre deux locations (peinture, planchers, finition)",
+      "Réparations d'urgence et interventions rapides",
+      "Entretien extérieur et saisonnier",
+      "Partenariat solide avec un entrepreneur général",
+    ],
     icon: "wrench",
   },
   {
     index: "04",
-    title: "Sélection des locataires",
+    title: "Service de location",
     description:
-      "Mise en marché premium et enquête approfondie pour attirer et retenir des locataires d'exception.",
-    points: ["Enquête de crédit & antécédents", "Photographie et diffusion premium", "Vérifications complètes"],
+      "De la mise en marché à l'emménagement : photographie, diffusion, enquête approfondie et sélection rigoureuse des locataires.",
+    points: [
+      "Prise de photos professionnelles du logement",
+      "Visite des lieux avec les locataires potentiels",
+      "Mise en marché et diffusion des annonces",
+      "Réception et analyse des candidatures",
+      "Vérification des références de location et d'emploi",
+      "Enquête de crédit complète",
+      "Vérification des dossiers au Tribunal administratif du logement (TAL)",
+      "Vérification des antécédents judiciaires, lorsque permis par la loi",
+      "Préparation et signature du bail",
+      "Remise des documents et suivi jusqu'à l'emménagement",
+    ],
     icon: "shield",
   },
   {
     index: "05",
-    title: "Reddition de comptes",
+    title: "Consultation et accompagnement",
     description:
-      "Des rapports financiers limpides, une conformité irréprochable et une fiscalité maîtrisée, mois après mois.",
-    points: ["États financiers mensuels", "Conformité réglementaire", "Préparation fiscale"],
-    icon: "ledger",
-  },
-  {
-    index: "06",
-    title: "Conseil en investissement",
-    description:
-      "Acquisition, valorisation et stratégie de portefeuille : nous pensons votre patrimoine sur le long terme.",
-    points: ["Analyse d'acquisition", "Stratégie de valorisation", "Vision de portefeuille"],
+      "Du conseil stratégique à la représentation devant le TAL, un accompagnement offert sur une base horaire ou selon vos besoins.",
+    points: [
+      "Conseils stratégiques en gestion immobilière",
+      "Optimisation des opérations et de la rentabilité",
+      "Analyse des pratiques et recommandations d'amélioration",
+      "Accompagnement dans la mise en place de processus efficaces",
+      "Formation et encadrement du personnel de gestion",
+      "Représentation et accompagnement devant le TAL",
+      "Service-conseil sur une base horaire ou selon vos besoins",
+    ],
     icon: "compass",
   },
 ];
@@ -177,10 +211,9 @@ export const CLIENT_TEASER_IMAGE = unsplash("1600607687939-ce8a6c25118c", 1200);
 export type Stat = { value: string; label: string };
 
 export const STATS: Stat[] = [
-  { value: "320+", label: "Logements sous gestion" },
-  { value: "97,4 %", label: "Occupation moyenne" },
-  { value: "24 j", label: "Délai moyen de mise en location" },
-  { value: "4,6 M$+", label: "Loyers administrés par an" },
+  { value: "511", label: "Logements sous gestion" },
+  { value: "98 %", label: "Occupation moyenne" },
+  { value: "5,77 M$", label: "Loyers administrés par an" },
   { value: "4,9/5", label: "Satisfaction des propriétaires" },
 ];
 
