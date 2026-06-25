@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SERVICES, type Service } from "@/lib/data";
+import { cn } from "@/lib/utils";
 import { Stagger, StaggerItem } from "@/components/ui/reveal";
 
 const ICONS: Record<Service["icon"], LucideIcon> = {
@@ -19,10 +20,15 @@ const ICONS: Record<Service["icon"], LucideIcon> = {
   compass: Compass,
 };
 
-function ServiceCell({ service }: { service: Service }) {
+function ServiceCell({ service, className }: { service: Service; className?: string }) {
   const Icon = ICONS[service.icon];
   return (
-    <StaggerItem className="group relative flex flex-col border-b border-r border-line p-8 transition-colors duration-500 hover:bg-paper-2 md:p-10">
+    <StaggerItem
+      className={cn(
+        "group relative flex flex-col border-b border-r border-line p-8 transition-colors duration-500 hover:bg-paper-2 md:p-10",
+        className
+      )}
+    >
       <div className="flex items-start justify-between">
         <Icon className="size-7 text-ink/80" strokeWidth={1.4} />
         <span className="kicker text-smoke">{service.index}</span>
@@ -47,10 +53,40 @@ function ServiceCell({ service }: { service: Service }) {
 
 /** Content-only services grid (page supplies the header + section wrapper). */
 export function Services() {
+  const total = SERVICES.length;
+  const remainder = total % 3; // nombre de cartes sur la dernière rangée incomplète
+  const lastRowStart = total - remainder;
+
+  // En grille 6 colonnes (chaque carte = 2 colonnes), on décale la 1re carte
+  // de la dernière rangée pour la centrer : 2 cartes → départ col. 2 ; 1 carte → col. 3.
+  const offsetFor = (i: number) => {
+    if (i !== lastRowStart) return undefined;
+    if (remainder === 2) return "lg:col-start-2";
+    if (remainder === 1) return "lg:col-start-3";
+    return undefined;
+  };
+
+  // La bordure gauche n'est pas portée par le conteneur (sinon elle reste à
+  // l'extrémité, détachée des cartes centrées de la dernière rangée) : chaque
+  // carte la plus à gauche de SA rangée porte sa propre bordure gauche.
+  //  · base (1 col) : toutes les cartes sont à gauche
+  //  · sm  (2 col)  : les cartes d'index pair
+  //  · lg  (6 col)  : la 1re carte (i=0) et la 1re de la dernière rangée
+  const leftBorder = (i: number) =>
+    cn(
+      "border-l",
+      i % 2 === 0 ? "sm:border-l" : "sm:border-l-0",
+      i === 0 || i === lastRowStart ? "lg:border-l" : "lg:border-l-0"
+    );
+
   return (
-    <Stagger className="grid grid-cols-1 border-l border-t border-line sm:grid-cols-2 lg:grid-cols-3">
-      {SERVICES.map((service) => (
-        <ServiceCell key={service.index} service={service} />
+    <Stagger className="grid grid-cols-1 border-t border-line sm:grid-cols-2 lg:grid-cols-6">
+      {SERVICES.map((service, i) => (
+        <ServiceCell
+          key={service.index}
+          service={service}
+          className={cn("lg:col-span-2", leftBorder(i), offsetFor(i))}
+        />
       ))}
     </Stagger>
   );
