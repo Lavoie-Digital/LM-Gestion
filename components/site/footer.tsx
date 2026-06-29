@@ -39,6 +39,10 @@ export function Footer() {
                 La gestion de votre patrimoine immobilier au Saguenay, menée avec l'exigence
                 d'un service privé et la précision de la donnée.
               </p>
+              <p className="mt-4 max-w-sm text-sm leading-relaxed text-ash/75">
+                Au service de tout le Saguenay–Lac-Saint-Jean : Chicoutimi, Jonquière, La Baie,
+                Alma et la région.
+              </p>
 
               <div className="mt-8 flex flex-col gap-3 text-sm text-ash">
                 <a
