@@ -155,14 +155,22 @@ export function Footer() {
           <p>
             © {year} {COMPANY.name}. Tous droits réservés.
           </p>
-          <p className="mono uppercase tracking-[0.2em] text-ash/70">
-            Saguenay–Lac-Saint-Jean
+          <p className="text-ash/60">
+            Conception ·{" "}
+            <a
+              href="https://lavoiedigital.ca"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline-offset-2 transition-colors hover:text-paper hover:underline"
+            >
+              Lavoie Digital
+            </a>
           </p>
           <div className="flex items-center gap-6">
-            <Link href="/contact" className="transition-colors hover:text-paper">
+            <Link href="/confidentialite" className="transition-colors hover:text-paper">
               Confidentialité
             </Link>
-            <Link href="/contact" className="transition-colors hover:text-paper">
+            <Link href="/conditions" className="transition-colors hover:text-paper">
               Conditions
             </Link>
           </div>
