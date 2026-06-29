@@ -157,51 +157,20 @@ export type Property = {
   category: string;
   units: number;
   image: string;
+  /** Dimensions natives de la photo (pour respecter le format en mosaïque). */
+  width: number;
+  height: number;
 };
 
+// Vrais immeubles sous gestion — affichés en anonyme (photo + ville), en
+// mosaïque qui respecte le format natif de chaque photo. Rendu noir et blanc
+// (img-grayscale). Photos fournies par la cliente.
 export const PORTFOLIO: Property[] = [
-  {
-    name: "Le Racine",
-    neighborhood: "Chicoutimi",
-    category: "Tour locative",
-    units: 28,
-    image: unsplash("1486406146926-c627a92ad1ab"),
-  },
-  {
-    name: "Maison Saint-Dominique",
-    neighborhood: "Jonquière",
-    category: "Immeuble de prestige",
-    units: 18,
-    image: unsplash("1512917774080-9991f1c4c750"),
-  },
-  {
-    name: "Atelier du Bassin",
-    neighborhood: "Chicoutimi · Le Bassin",
-    category: "Lofts",
-    units: 34,
-    image: unsplash("1493809842364-78817add7ffb"),
-  },
-  {
-    name: "Belvédère du Fjord",
-    neighborhood: "La Baie",
-    category: "Résidentiel haut de gamme",
-    units: 16,
-    image: unsplash("1600585154340-be6161a56a0c"),
-  },
-  {
-    name: "Les Cours Arvida",
-    neighborhood: "Arvida",
-    category: "Plex moderne",
-    units: 24,
-    image: unsplash("1564013799919-ab600027ffc6"),
-  },
-  {
-    name: "Le Vieux-Port",
-    neighborhood: "Vieux-Port de Chicoutimi",
-    category: "Condo patrimonial",
-    units: 22,
-    image: unsplash("1502672260266-1c1ef2d93688"),
-  },
+  { name: "imm-1", neighborhood: "Chicoutimi", category: "", units: 0, image: "/chicoutimi-1.jpg", width: 882, height: 465 },
+  { name: "imm-2", neighborhood: "La Baie", category: "", units: 0, image: "/la-baie.jpg", width: 592, height: 546 },
+  { name: "imm-3", neighborhood: "Jonquière", category: "", units: 0, image: "/jonquiere.jpg", width: 642, height: 291 },
+  { name: "imm-4", neighborhood: "Chicoutimi", category: "", units: 0, image: "/chicoutimi-3.jpg", width: 587, height: 507 },
+  { name: "imm-5", neighborhood: "Chicoutimi", category: "", units: 0, image: "/chicoutimi-2.jpg", width: 796, height: 426 },
 ];
 
 export const HERO_IMAGE = unsplash("1487958449943-2429e8be8625", 1800);

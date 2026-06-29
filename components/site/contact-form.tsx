@@ -11,13 +11,30 @@ const inputCls =
 const labelCls = "mb-2 block text-xs font-medium uppercase tracking-wider text-smoke";
 
 export function ContactForm() {
-  const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (status === "sending") return;
+    const form = e.currentTarget;
+    const payload = Object.fromEntries(new FormData(form).entries());
     setStatus("sending");
-    setTimeout(() => setStatus("sent"), 1000);
+    setError(null);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "L'envoi a échoué.");
+      form.reset();
+      setStatus("sent");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Une erreur est survenue.");
+      setStatus("error");
+    }
   }
 
   return (
@@ -34,10 +51,11 @@ export function ContactForm() {
             <span className="flex size-14 items-center justify-center rounded-full bg-ink text-paper">
               <Check className="size-6" />
             </span>
-            <h3 className="mt-6 font-display text-2xl tracking-tight">Message reçu</h3>
+            <h3 className="mt-6 font-display text-2xl tracking-tight">Message envoyé</h3>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-smoke">
-              Merci. Un membre de notre équipe vous recontactera sous peu. (Démo — aucun
-              courriel n'est réellement envoyé.)
+              Merci. Vous recevrez un accusé de réception par courriel et un membre de notre
+              équipe vous répondra dans un délai de 48 heures. (Pensez à vérifier vos
+              indésirables.)
             </p>
             <button
               type="button"
@@ -131,6 +149,12 @@ export function ContactForm() {
                 className="w-full rounded-[2px] border border-line bg-white p-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
               />
             </div>
+
+            {status === "error" && error && (
+              <p className="rounded-[2px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </p>
+            )}
 
             <Button type="submit" size="lg" className="mt-1 w-full" disabled={status === "sending"}>
               {status === "sending" ? (
