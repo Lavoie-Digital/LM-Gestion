@@ -72,7 +72,7 @@ export function Hero() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.9, ease: easeLux, delay: 0.15 }}
-        className="shell absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-4 pt-20 md:pt-24"
+        className="shell relative z-10 flex items-center justify-between gap-4 pt-20 md:absolute md:inset-x-0 md:top-0 md:pt-24"
       >
         <span className="flex items-center gap-3">
           <span className="h-px w-8 bg-paper/40" />
