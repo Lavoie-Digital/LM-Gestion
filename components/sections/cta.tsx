@@ -39,9 +39,6 @@ export function CTA() {
                 Planifier une rencontre
               </ButtonLink>
             </Magnetic>
-            <ButtonLink href="/connexion" variant="outline-light" size="lg" arrow>
-              Accéder à l'espace client
-            </ButtonLink>
           </div>
         </Reveal>
       </div>

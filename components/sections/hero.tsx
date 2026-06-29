@@ -125,8 +125,8 @@ export function Hero() {
           <ButtonLink href="/services" variant="light" size="lg">
             Découvrir nos services
           </ButtonLink>
-          <ButtonLink href="/connexion" variant="outline-light" size="lg" arrow>
-            Accéder à l'espace client
+          <ButtonLink href="/contact" variant="outline-light" size="lg" arrow>
+            Nous joindre
           </ButtonLink>
         </motion.div>
       </motion.div>

@@ -111,12 +111,9 @@ export function ClientSpaceTeaser() {
 
           <Reveal delay={0.1}>
             <div className="mt-10 flex flex-wrap items-center gap-4">
-              <ButtonLink href="/connexion" variant="light" size="lg" arrow>
-                Se connecter
+              <ButtonLink href="/contact" variant="light" size="lg" arrow>
+                Demander une démonstration
               </ButtonLink>
-              <span className="mono text-[0.65rem] uppercase tracking-[0.18em] text-ash">
-                Démo · aucune connexion requise
-              </span>
             </div>
           </Reveal>
         </div>

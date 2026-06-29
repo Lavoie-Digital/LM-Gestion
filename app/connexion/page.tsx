@@ -162,23 +162,9 @@ export default function ConnexionPage() {
               </Button>
             </form>
 
-            <div className="mt-6 flex items-center gap-4">
-              <span className="h-px flex-1 bg-line" />
-              <span className="mono text-[0.6rem] uppercase tracking-[0.2em] text-smoke">ou</span>
-              <span className="h-px flex-1 bg-line" />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => router.push("/tableau-de-bord")}
-              className="mt-6 w-full rounded-[2px] border border-line py-3.5 text-sm font-medium text-ink transition-colors hover:bg-paper-2"
-            >
-              Continuer en mode démonstration
-            </button>
-
             <p className="mt-6 text-center text-xs leading-relaxed text-smoke">
-              Démo · aucune authentification réelle. Utilisez n'importe quels identifiants ou
-              poursuivez en mode démonstration.
+              Accès réservé à nos clients. Pour obtenir vos identifiants, communiquez avec votre
+              gestionnaire.
             </p>
           </motion.div>
         </div>
