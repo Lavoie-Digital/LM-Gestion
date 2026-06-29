@@ -2,7 +2,7 @@ import Image from "next/image";
 import { Reveal } from "@/components/ui/reveal";
 
 // Founder photo, placed in /public. Rendered in black & white via `img-grayscale`.
-const OWNER_PHOTO = "/proprio.avif";
+const OWNER_PHOTO = "/proprio.jpg";
 
 export function Firme() {
   return (
