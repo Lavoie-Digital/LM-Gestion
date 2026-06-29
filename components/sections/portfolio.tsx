@@ -1,15 +1,12 @@
 import Image from "next/image";
 import { PORTFOLIO, type Property } from "@/lib/data";
-import { cn } from "@/lib/utils";
 import { Stagger, StaggerItem } from "@/components/ui/reveal";
 
 function PropertyCard({ property }: { property: Property }) {
   return (
     <StaggerItem
       as="figure"
-      className={cn(
-        "group relative mb-5 block break-inside-avoid overflow-hidden rounded-[2px] border border-line bg-paper-2"
-      )}
+      className="group relative block overflow-hidden rounded-[2px] border border-line bg-paper-2"
     >
       {/* width/height natifs + w-full h-auto → format respecté, aucun recadrage. */}
       <Image
@@ -37,15 +34,43 @@ function PropertyCard({ property }: { property: Property }) {
 }
 
 /**
- * Mosaïque verticale (2 colonnes) : grandes photos qui gardent leur format natif
- * et s'imbriquent ; la localisation se révèle au survol.
+ * Répartit les photos en 2 colonnes équilibrées par hauteur (algorithme LPT :
+ * on assigne chaque photo, de la plus haute à la plus basse, à la colonne la
+ * moins remplie). Les deux colonnes se terminent ainsi quasi à la même hauteur.
+ * La hauteur relative d'une photo = height / width (largeur de colonne égale).
  */
-export function Portfolio() {
+function balanceColumns(items: Property[]): [Property[], Property[]] {
+  const sorted = [...items].sort((a, b) => b.height / b.width - a.height / a.width);
+  const cols: [Property[], Property[]] = [[], []];
+  const sums = [0, 0];
+  for (const it of sorted) {
+    const target = sums[0] <= sums[1] ? 0 : 1;
+    cols[target].push(it);
+    sums[target] += it.height / it.width;
+  }
+  return cols;
+}
+
+function Column({ items }: { items: Property[] }) {
   return (
-    <Stagger className="columns-1 gap-5 md:columns-2">
-      {PORTFOLIO.map((property) => (
+    <Stagger className="flex flex-col gap-5">
+      {items.map((property) => (
         <PropertyCard key={property.name} property={property} />
       ))}
     </Stagger>
+  );
+}
+
+/**
+ * Mosaïque verticale, 2 colonnes équilibrées (mêmes fins de colonne) ; chaque
+ * photo garde son format natif ; la localisation se révèle au survol.
+ */
+export function Portfolio() {
+  const [left, right] = balanceColumns(PORTFOLIO);
+  return (
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:items-start">
+      <Column items={left} />
+      <Column items={right} />
+    </div>
   );
 }

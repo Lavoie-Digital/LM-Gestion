@@ -8,6 +8,7 @@ const AREA_SERVED = [
   "Chicoutimi",
   "Jonquière",
   "La Baie",
+  "Saint-Honoré",
   "Arvida",
   "Kénogami",
   "Alma",

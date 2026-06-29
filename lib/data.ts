@@ -168,9 +168,12 @@ export type Property = {
 export const PORTFOLIO: Property[] = [
   { name: "imm-1", neighborhood: "Chicoutimi", category: "", units: 0, image: "/chicoutimi-1.jpg", width: 882, height: 465 },
   { name: "imm-2", neighborhood: "La Baie", category: "", units: 0, image: "/la-baie.jpg", width: 592, height: 546 },
-  { name: "imm-3", neighborhood: "Jonquière", category: "", units: 0, image: "/jonquiere.jpg", width: 642, height: 291 },
-  { name: "imm-4", neighborhood: "Chicoutimi", category: "", units: 0, image: "/chicoutimi-3.jpg", width: 587, height: 507 },
-  { name: "imm-5", neighborhood: "Chicoutimi", category: "", units: 0, image: "/chicoutimi-2.jpg", width: 796, height: 426 },
+  { name: "imm-3", neighborhood: "Chicoutimi", category: "", units: 0, image: "/chicoutimi-6.jpg", width: 1150, height: 499 },
+  { name: "imm-4", neighborhood: "Jonquière", category: "", units: 0, image: "/jonquiere.jpg", width: 642, height: 291 },
+  { name: "imm-5", neighborhood: "Chicoutimi", category: "", units: 0, image: "/chicoutimi-4.jpg", width: 849, height: 558 },
+  { name: "imm-6", neighborhood: "Chicoutimi", category: "", units: 0, image: "/chicoutimi-3.jpg", width: 587, height: 507 },
+  { name: "imm-7", neighborhood: "Saint-Honoré", category: "", units: 0, image: "/st-honore-v2.jpg", width: 705, height: 482 },
+  { name: "imm-8", neighborhood: "Chicoutimi", category: "", units: 0, image: "/chicoutimi-2.jpg", width: 796, height: 426 },
 ];
 
 export const HERO_IMAGE = unsplash("1487958449943-2429e8be8625", 1800);
