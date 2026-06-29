@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: "/",
         // Espace client + routes techniques : non indexés.
-        disallow: ["/api/", "/tableau-de-bord", "/connexion"],
+        disallow: ["/api/", "/tableau-de-bord", "/connexion", "/admin"],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

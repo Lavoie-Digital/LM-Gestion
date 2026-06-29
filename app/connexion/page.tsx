@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, Loader2, Lock, Mail } from "lucide-react";
 import { easeLux } from "@/lib/motion";
 import { Logo } from "@/components/site/logo";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
 
 const PERKS = [
   "Revenus et occupation en temps réel",
@@ -15,18 +16,69 @@ const PERKS = [
   "Comparables du marché en continu",
 ];
 
+function GoogleG({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden className={className}>
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+function authErrorMessage(err: unknown): string {
+  const code = (err as { code?: string })?.code ?? "";
+  if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found"))
+    return "Courriel ou mot de passe incorrect.";
+  if (code.includes("popup-closed") || code.includes("cancelled-popup")) return "Connexion annulée.";
+  if (code.includes("too-many-requests")) return "Trop de tentatives. Réessayez plus tard.";
+  if (code.includes("unauthorized-domain")) return "Domaine non autorisé dans Firebase.";
+  return "La connexion a échoué. Réessayez.";
+}
+
 export default function ConnexionPage() {
   const router = useRouter();
+  const { user, loading: authLoading, configured, isAllowed, signInWithGoogle, signInWithEmail, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function submit(e: React.FormEvent) {
+  // Connecté + autorisé → vers le tableau de bord.
+  useEffect(() => {
+    if (!authLoading && user && isAllowed) router.replace("/tableau-de-bord");
+  }, [authLoading, user, isAllowed, router]);
+
+  async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    // Demo only — no real authentication. Head straight to the dashboard.
-    setTimeout(() => router.push("/tableau-de-bord"), 900);
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await signInWithEmail(email, password);
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
   }
+
+  async function google() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Connecté mais non autorisé (hors liste blanche).
+  const deniedAccess = !authLoading && user && !isAllowed;
 
   return (
     <main className="grid min-h-[100svh] lg:grid-cols-[1.05fr_1fr]">
@@ -110,62 +162,106 @@ export default function ConnexionPage() {
               Accédez au tableau de bord de votre portefeuille.
             </p>
 
-            <form onSubmit={submit} className="mt-9 flex flex-col gap-5">
-              <div>
-                <label htmlFor="email" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
-                  Courriel
-                </label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="vous@exemple.com"
-                    className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
-                  />
-                </div>
+            {!configured ? (
+              <div className="mt-9 rounded-[2px] border border-line bg-paper-2/60 p-5 text-sm leading-relaxed text-smoke">
+                L'authentification n'est pas encore configurée. Ajoutez les clés Firebase
+                (<code className="text-ink">NEXT_PUBLIC_FIREBASE_*</code>) au fichier <code className="text-ink">.env</code>.
               </div>
-
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label htmlFor="password" className="block text-xs font-medium uppercase tracking-wider text-smoke">
-                    Mot de passe
-                  </label>
-                  <span className="text-xs text-smoke/70">Oublié ?</span>
+            ) : deniedAccess ? (
+              <div className="mt-9 flex flex-col gap-4">
+                <div className="rounded-[2px] border border-line bg-paper-2/60 p-5 text-sm leading-relaxed text-smoke">
+                  Connecté en tant que <strong className="text-ink">{user?.email}</strong>, mais ce
+                  compte n'a pas accès au tableau de bord.
                 </div>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
-                  <input
-                    id="password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
-                  />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => signOut()}
+                  className="text-sm text-ink underline-offset-4 hover:underline"
+                >
+                  Se déconnecter
+                </button>
               </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={google}
+                  disabled={busy}
+                  className="mt-9 flex h-12 w-full items-center justify-center gap-3 rounded-[2px] border border-line bg-white text-sm font-medium text-ink transition-colors hover:bg-paper-2 disabled:opacity-50"
+                >
+                  <GoogleG className="size-4" />
+                  Continuer avec Google
+                </button>
 
-              <Button type="submit" size="lg" className="mt-2 w-full" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Connexion…
-                  </>
-                ) : (
-                  "Se connecter"
-                )}
-              </Button>
-            </form>
+                <div className="my-6 flex items-center gap-4">
+                  <span className="h-px flex-1 bg-line" />
+                  <span className="mono text-[0.6rem] uppercase tracking-[0.2em] text-smoke">ou</span>
+                  <span className="h-px flex-1 bg-line" />
+                </div>
 
-            <p className="mt-6 text-center text-xs leading-relaxed text-smoke">
-              Accès réservé à nos clients. Pour obtenir vos identifiants, communiquez avec votre
-              gestionnaire.
-            </p>
+                <form onSubmit={submitEmail} className="flex flex-col gap-5">
+                  <div>
+                    <label htmlFor="email" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
+                      Courriel
+                    </label>
+                    <div className="relative">
+                      <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
+                      <input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="vous@exemple.com"
+                        className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="password" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
+                      Mot de passe
+                    </label>
+                    <div className="relative">
+                      <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
+                      <input
+                        id="password"
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <p className="rounded-[2px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {error}
+                    </p>
+                  )}
+
+                  <Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
+                    {busy ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Connexion…
+                      </>
+                    ) : (
+                      "Se connecter"
+                    )}
+                  </Button>
+                </form>
+
+                <p className="mt-6 text-center text-xs leading-relaxed text-smoke">
+                  Accès réservé à nos clients. Pour obtenir vos identifiants, communiquez avec
+                  votre gestionnaire.
+                </p>
+              </>
+            )}
           </motion.div>
         </div>
       </section>

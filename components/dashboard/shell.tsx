@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -16,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { CLIENT, LIVE_TICKER } from "@/lib/data";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { easeLux } from "@/lib/motion";
 import { Logo } from "@/components/site/logo";
@@ -68,6 +70,14 @@ function SidebarInner({
   active: string;
   onSelect: (href: string) => void;
 }) {
+  const router = useRouter();
+  const { signOut } = useAuth();
+
+  async function handleSignOut() {
+    await signOut();
+    router.replace("/connexion");
+  }
+
   return (
     <div className="flex h-full flex-col bg-noir text-paper">
       <div className="grid-faint absolute inset-0 opacity-30" aria-hidden />
@@ -101,13 +111,14 @@ function SidebarInner({
           </div>
         </div>
 
-        <Link
-          href="/connexion"
-          className="mt-3 flex items-center gap-3 rounded-[3px] px-3.5 py-2.5 text-sm text-ash transition-colors hover:bg-paper/10 hover:text-paper"
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="mt-3 flex w-full items-center gap-3 rounded-[3px] px-3.5 py-2.5 text-left text-sm text-ash transition-colors hover:bg-paper/10 hover:text-paper"
         >
           <LogOut className="size-[1.05rem]" strokeWidth={1.6} />
           Déconnexion
-        </Link>
+        </button>
       </div>
     </div>
   );

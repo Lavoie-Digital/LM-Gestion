@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { StructuredData } from "@/components/site/structured-data";
+import { AuthProvider } from "@/lib/auth";
 
 const display = Fraunces({
   subsets: ["latin"],
@@ -98,7 +99,7 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <StructuredData />
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         {/* Film-grain texture overlay — kept subtle, monochrome, non-interactive */}
         <div aria-hidden className="grain-overlay" />
       </body>

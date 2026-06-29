@@ -1,6 +1,9 @@
 "use client";
 
-import { Building2, DoorOpen, Sparkles, Wallet } from "lucide-react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Building2, DoorOpen, Loader2, Sparkles, Wallet } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import { BUILDINGS, REVENUE_ALLOCATION, REVENUE_SERIES } from "@/lib/data";
 import { formatCAD, formatCADCompact } from "@/lib/utils";
 import { DashboardShell } from "@/components/dashboard/shell";
@@ -139,6 +142,22 @@ function RevenueByBuildingCard() {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { user, loading, isAllowed, configured } = useAuth();
+
+  // Accès réservé : redirige vers la connexion si non authentifié / non autorisé.
+  useEffect(() => {
+    if (!loading && (!configured || !user || !isAllowed)) router.replace("/connexion");
+  }, [loading, user, isAllowed, configured, router]);
+
+  if (loading || !user || !isAllowed) {
+    return (
+      <div className="flex min-h-[100svh] items-center justify-center bg-paper text-smoke">
+        <Loader2 className="size-6 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <DashboardShell>
       <div className="space-y-6 md:space-y-8">
