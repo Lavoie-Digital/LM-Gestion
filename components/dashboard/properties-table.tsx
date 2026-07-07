@@ -2,7 +2,33 @@ import { BUILDINGS } from "@/lib/data";
 import { formatCAD } from "@/lib/utils";
 import { Sparkline } from "@/components/charts/sparkline";
 
-export function PropertiesTable() {
+export type PropertyRow = {
+  name: string;
+  neighborhood: string;
+  occupied: number;
+  units: number;
+  occupancy: number;
+  monthlyRevenue: number;
+  spark?: number[];
+};
+
+const DEMO_ROWS: PropertyRow[] = BUILDINGS.map((b) => ({
+  name: b.name,
+  neighborhood: b.neighborhood,
+  occupied: b.occupied,
+  units: b.units,
+  occupancy: b.occupancy,
+  monthlyRevenue: b.monthlyRevenue,
+  spark: b.spark,
+}));
+
+export function PropertiesTable({
+  rows = DEMO_ROWS,
+  updatedLabel = "Mis à jour à l'instant",
+}: {
+  rows?: PropertyRow[];
+  updatedLabel?: string;
+}) {
   return (
     <section
       id="immeubles"
@@ -11,10 +37,10 @@ export function PropertiesTable() {
       <div className="flex items-center justify-between border-b border-line px-6 py-5">
         <div>
           <h2 className="font-display text-xl tracking-tight">Immeubles</h2>
-          <p className="mt-1 text-xs text-smoke">{BUILDINGS.length} actifs sous gestion</p>
+          <p className="mt-1 text-xs text-smoke">{rows.length} actifs sous gestion</p>
         </div>
         <span className="mono text-[0.6rem] uppercase tracking-[0.16em] text-smoke">
-          Mis à jour à l'instant
+          {updatedLabel}
         </span>
       </div>
 
@@ -30,7 +56,7 @@ export function PropertiesTable() {
             </tr>
           </thead>
           <tbody>
-            {BUILDINGS.map((b) => (
+            {rows.map((b) => (
               <tr
                 key={b.name}
                 className="border-b border-line-soft transition-colors last:border-0 hover:bg-paper-2/60"
@@ -61,7 +87,11 @@ export function PropertiesTable() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex justify-end">
-                    <Sparkline data={b.spark} width={84} height={26} className="text-ink/40" />
+                    {b.spark ? (
+                      <Sparkline data={b.spark} width={84} height={26} className="text-ink/40" />
+                    ) : (
+                      <span className="text-xs text-smoke/50">—</span>
+                    )}
                   </div>
                 </td>
               </tr>

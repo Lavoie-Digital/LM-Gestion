@@ -17,10 +17,9 @@ export function plexflowConfigured(): boolean {
 }
 
 /**
- * Appel authentifié générique à l'API PlexFlow.
- * NOTE : on suppose `Authorization: Bearer <clé>` — à ajuster selon la doc
- * (certaines API utilisent `X-API-Key`). Centralisé ici pour un seul point
- * de changement.
+ * Appel authentifié générique à l'API PlexFlow REST.
+ * Auth CONFIRMÉE : header `X-Plexflow-Key: <clé>` (pas de Bearer).
+ * Base : https://api.plexflow.ca/api/public
  */
 export async function plexflowFetch<T = unknown>(
   path: string,
@@ -33,7 +32,7 @@ export async function plexflowFetch<T = unknown>(
   const res = await fetch(url, {
     ...init,
     headers: {
-      Authorization: `Bearer ${API_KEY}`,
+      "X-Plexflow-Key": API_KEY,
       Accept: "application/json",
       ...(init?.headers ?? {}),
     },
@@ -75,15 +74,15 @@ export type PlexFlowUnit = {
   apptNb?: string;
   floorLevel?: string | number;
   surfaceArea?: number;
-  unitType?: string;
+  unitType?: string | number;
   hasWaterHeater?: boolean;
-  marketPrice?: number;
-  marketRenewalPrice?: number;
+  marketPrice?: number | null;
+  marketRenewalPrice?: number | null;
   propertyAddressDetails?: PlexFlowAddressDetails;
   // Loyer (montants en CENTS)
-  rentId?: string;
-  rentStatus?: string;
-  statuses?: string[];
+  rentId?: string | number;
+  rentStatus?: string | number;
+  statuses?: string | string[];
   rentEnding?: string;
   rentStarting?: string;
   rentBeforeDiscount?: number;
@@ -117,14 +116,14 @@ export function centsToDollars(cents: number | undefined): number {
 
 /* ------------------------------------------------------------------ *
  * Méthodes métier.
- * ⚠️ Le CHEMIN exact de l'endpoint reste à confirmer (réglages API PlexFlow) ;
- * surchargeable via PLEXFLOW_UNITS_PATH. L'enveloppe { count, units } est, elle,
- * documentée.
+ * Endpoint CONFIRMÉ : GET property/vacant-units → { count, units[] }
+ * (surchargeable via PLEXFLOW_UNITS_PATH). Renvoie le parc avec loyer (cents),
+ * `subaccount` (nom du propriétaire), adresses, locataires et dispo.
  * ------------------------------------------------------------------ */
 
 /** Récupère les unités du parc (avec loyer, locataires, dispo). */
 export async function getUnits(params?: Record<string, string>): Promise<PlexFlowUnitsResponse> {
-  const path = process.env.PLEXFLOW_UNITS_PATH || "units";
+  const path = process.env.PLEXFLOW_UNITS_PATH || "property/vacant-units";
   const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
   return plexflowFetch<PlexFlowUnitsResponse>(`${path}${qs}`);
 }

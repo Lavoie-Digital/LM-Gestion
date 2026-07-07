@@ -25,6 +25,8 @@ export type Owner = {
   id: string;
   name: string;
   email: string;
+  /** Sous-compte PlexFlow (nom exact = champ `subaccount` de l'API) → filtre le parc du client. */
+  plexflowSubaccount?: string | null;
 };
 
 /** Immeuble géré, assigné (ou non) à un propriétaire. */
@@ -46,10 +48,15 @@ export async function listOwners(): Promise<Owner[]> {
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Owner, "id">) }));
 }
 
-export async function addOwner(data: { name: string; email: string }): Promise<void> {
+export async function addOwner(data: {
+  name: string;
+  email: string;
+  plexflowSubaccount?: string;
+}): Promise<void> {
   await addDoc(collection(db(), "owners"), {
     name: data.name.trim(),
     email: data.email.trim().toLowerCase(),
+    plexflowSubaccount: data.plexflowSubaccount?.trim() || null,
     createdAt: serverTimestamp(),
   });
 }

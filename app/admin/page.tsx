@@ -33,6 +33,7 @@ export default function AdminPage() {
 
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerSubaccount, setOwnerSubaccount] = useState("");
   const [buildingName, setBuildingName] = useState("");
   const [buildingCity, setBuildingCity] = useState("");
 
@@ -133,26 +134,39 @@ export default function AdminPage() {
                 e.preventDefault();
                 if (!ownerName.trim() || !ownerEmail.trim()) return;
                 run(async () => {
-                  await addOwner({ name: ownerName, email: ownerEmail });
+                  await addOwner({ name: ownerName, email: ownerEmail, plexflowSubaccount: ownerSubaccount });
                   setOwnerName("");
                   setOwnerEmail("");
+                  setOwnerSubaccount("");
                 });
               }}
-              className="mt-5 flex flex-col gap-3 rounded-[3px] border border-line bg-paper-2/40 p-4 sm:flex-row"
+              className="mt-5 flex flex-col gap-3 rounded-[3px] border border-line bg-paper-2/40 p-4"
             >
-              <input className={inputCls} placeholder="Nom du client" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
-              <input className={inputCls} type="email" placeholder="Courriel" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} />
-              <button type="submit" disabled={busy} className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[2px] bg-ink px-4 text-sm font-medium text-paper disabled:opacity-50">
-                <Plus className="size-4" /> Ajouter
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input className={inputCls} placeholder="Nom du client" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
+                <input className={inputCls} type="email" placeholder="Courriel (celui de connexion)" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input className={inputCls} placeholder="Sous-compte PlexFlow — nom exact (ex. Frères Cyr)" value={ownerSubaccount} onChange={(e) => setOwnerSubaccount(e.target.value)} />
+                <button type="submit" disabled={busy} className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[2px] bg-ink px-4 text-sm font-medium text-paper disabled:opacity-50">
+                  <Plus className="size-4" /> Ajouter
+                </button>
+              </div>
+              <p className="text-xs text-smoke/80">
+                Le sous-compte PlexFlow (le champ <code>subaccount</code>, ex. « Frères Cyr »)
+                relie ce client à son parc. Sans lui, le client ne verra aucune donnée.
+              </p>
             </form>
 
             <ul className="mt-4 flex flex-col gap-2">
               {owners.map((o) => (
                 <li key={o.id} className="flex items-center justify-between rounded-[2px] border border-line px-4 py-3 text-sm">
-                  <span>
+                  <span className="min-w-0">
                     <span className="font-medium">{o.name}</span>
                     <span className="ml-2 text-smoke">{o.email}</span>
+                    <span className="ml-2 text-xs text-smoke/70">
+                      {o.plexflowSubaccount ? `· ${o.plexflowSubaccount}` : "· compte non lié"}
+                    </span>
                   </span>
                   <button type="button" onClick={() => run(() => deleteOwner(o.id))} className="text-smoke hover:text-red-600" aria-label="Supprimer">
                     <Trash2 className="size-4" />

@@ -18,7 +18,7 @@ export function KpiCard({
   format: (n: number) => string;
   deltaLabel: string;
   trend: "up" | "down" | "flat";
-  spark: number[];
+  spark?: number[];
   icon: LucideIcon;
 }) {
   const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
@@ -43,7 +43,9 @@ export function KpiCard({
           <TrendIcon className="size-3.5 shrink-0 text-ink/55" strokeWidth={2} />
           {deltaLabel}
         </span>
-        <Sparkline data={spark} width={92} height={30} className="shrink-0 text-ink/30" />
+        {spark && spark.length > 1 && (
+          <Sparkline data={spark} width={92} height={30} className="shrink-0 text-ink/30" />
+        )}
       </div>
     </div>
   );

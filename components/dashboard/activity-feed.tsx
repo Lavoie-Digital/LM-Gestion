@@ -20,7 +20,15 @@ const ICONS: Record<ActivityType, LucideIcon> = {
   inspection: ClipboardCheck,
 };
 
-export function ActivityFeed() {
+export type FeedItem = { type: ActivityType; title: string; detail: string; time: string };
+
+export function ActivityFeed({
+  items = ACTIVITY,
+  emptyLabel,
+}: {
+  items?: FeedItem[];
+  emptyLabel?: string;
+}) {
   return (
     <section
       id="activite"
@@ -31,8 +39,13 @@ export function ActivityFeed() {
         <span className="live-dot inline-block size-1.5 rounded-full bg-ink" />
       </div>
 
+      {items.length === 0 && (
+        <p className="flex-1 px-6 py-10 text-center text-sm text-smoke">
+          {emptyLabel ?? "Aucune activité pour l'instant."}
+        </p>
+      )}
       <ul className="flex-1 divide-y divide-line-soft px-6">
-        {ACTIVITY.map((a, i) => {
+        {items.map((a, i) => {
           const Icon = ICONS[a.type];
           return (
             <li key={i} className="flex items-start gap-3.5 py-4">

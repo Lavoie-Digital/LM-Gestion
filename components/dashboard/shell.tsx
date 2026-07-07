@@ -163,7 +163,7 @@ function LiveTicker() {
   );
 }
 
-export function DashboardShell({ children }: { children: ReactNode }) {
+export function DashboardShell({ children, live = false }: { children: ReactNode; live?: boolean }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [active, setActive] = useState("#apercu");
 
@@ -236,12 +236,21 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                   <h1 className="truncate font-display text-xl leading-none tracking-tight md:text-2xl">
                     Tableau de bord
                   </h1>
-                  <span
-                    title="Données de démonstration — les vraies données s'afficheront une fois PlexFlow connecté."
-                    className="hidden shrink-0 rounded-full border border-line bg-paper-2 px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-[0.14em] text-smoke sm:inline"
-                  >
-                    Démonstration
-                  </span>
+                  {live ? (
+                    <span
+                      title="Données réelles PlexFlow, en direct."
+                      className="hidden shrink-0 items-center gap-1.5 rounded-full border border-line bg-paper-2 px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-[0.14em] text-ink sm:inline-flex"
+                    >
+                      <span className="live-dot inline-block size-1.5 rounded-full bg-ink" /> PlexFlow
+                    </span>
+                  ) : (
+                    <span
+                      title="Données de démonstration — les vraies données s'afficheront une fois PlexFlow connecté."
+                      className="hidden shrink-0 rounded-full border border-line bg-paper-2 px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-[0.14em] text-smoke sm:inline"
+                    >
+                      Démonstration
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1 hidden text-xs text-smoke sm:block">
                   {CLIENT.portfolioName} · 16 juin 2026
