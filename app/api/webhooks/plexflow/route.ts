@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { cacheInvalidate } from "@/lib/cache";
+import { recordWebhook } from "@/lib/webhook-log";
 
 /* ------------------------------------------------------------------ *
  * Récepteur de webhooks PlexFlow.
@@ -46,19 +47,23 @@ const SIG_HEADERS = [
   "x-hub-signature-256",
 ];
 
-function verifySignature(rawBody: string, headers: Headers, secret: string): boolean {
-  const provided = SIG_HEADERS.map((h) => headers.get(h)).find(Boolean);
-  if (!provided) return false;
+function verifySignature(
+  rawBody: string,
+  headers: Headers,
+  secret: string
+): { verified: boolean; matched?: string } {
+  const matched = SIG_HEADERS.find((h) => headers.get(h));
+  const provided = matched ? headers.get(matched) : null;
+  if (!provided) return { verified: false };
   const clean = provided.replace(/^sha256=/i, "").trim();
-  const mac = crypto.createHmac("sha256", secret).update(rawBody, "utf8");
-  const hex = mac.digest("hex");
+  const hex = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
   const macB64 = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("base64");
   const safeEq = (a: string, b: string) => {
     const ba = Buffer.from(a);
     const bb = Buffer.from(b);
     return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
   };
-  return safeEq(clean, hex) || safeEq(clean, macB64);
+  return { verified: safeEq(clean, hex) || safeEq(clean, macB64), matched };
 }
 
 export async function POST(request: Request) {
@@ -84,9 +89,14 @@ export async function POST(request: Request) {
   // PlexFlow n'est pas confirmé (nom du header + hex/base64), on NE REJETTE PAS
   // sur échec (sinon un mauvais devinage bloquerait tous les vrais événements).
   // → Une fois le header/schéma confirmé dans les logs, remettre le `return 401`.
+  let verified: boolean | null = null;
+  let matchedSig: string | undefined;
   if (secret) {
-    if (verifySignature(rawBody, request.headers, secret)) {
-      console.log("[plexflow-webhook] ✓ Signature vérifiée.");
+    const r = verifySignature(rawBody, request.headers, secret);
+    verified = r.verified;
+    matchedSig = r.matched;
+    if (r.verified) {
+      console.log(`[plexflow-webhook] ✓ Signature vérifiée (header ${r.matched}).`);
     } else {
       console.warn(
         "[plexflow-webhook] ⚠ Signature non vérifiée avec les headers/schémas connus " +
@@ -115,6 +125,17 @@ export async function POST(request: Request) {
 
   console.log(`[plexflow-webhook] ▼ Événement reçu${eventType ? ` : ${eventType}` : " (type inconnu)"}`);
   console.log(JSON.stringify(payload, null, 2).slice(0, 3000));
+
+  // Enregistre l'événement dans le journal en mémoire → inspectable dans /admin/webhooks.
+  recordWebhook({
+    at: new Date().toISOString(),
+    method: request.headers.get("x-simulation") === "1" ? "SIMULATION" : "POST",
+    eventType,
+    verified,
+    matchedSigHeader: matchedSig,
+    headers: Object.fromEntries(request.headers.entries()),
+    body: payload,
+  });
 
   // TODO (avec la doc PlexFlow) : lire le type d'événement + l'identifiant du
   // propriétaire/portefeuille dans `payload`, puis invalider précisément :

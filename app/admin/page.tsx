@@ -94,6 +94,9 @@ export default function AdminPage() {
           <Link href="/admin/api-test" className="text-sm text-smoke underline-offset-2 hover:text-ink hover:underline">
             Test API PlexFlow
           </Link>
+          <Link href="/admin/webhooks" className="text-sm text-smoke underline-offset-2 hover:text-ink hover:underline">
+            Webhooks
+          </Link>
         </div>
         <button type="button" onClick={() => signOut()} className="inline-flex items-center gap-2 text-sm text-smoke hover:text-ink">
           <LogOut className="size-4" /> Déconnexion
