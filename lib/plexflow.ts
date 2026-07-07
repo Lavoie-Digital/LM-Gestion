@@ -84,13 +84,24 @@ export type PlexFlowUnit = {
   rentId?: string;
   rentStatus?: string;
   statuses?: string[];
+  rentEnding?: string;
+  rentStarting?: string;
+  rentBeforeDiscount?: number;
+  currentRentBeforeDiscountsCents?: number;
+  currentRentDiscountsCents?: number;
+  currentRentServicesCents?: number;
   currentRentTotalCents?: number;
+  scheduledRentBeforeDiscountsCents?: number;
+  scheduledRentDiscountsCents?: number;
+  scheduledRentServicesCents?: number;
   scheduledRentTotalCents?: number;
   // Locataires
   tenantsLeaving?: unknown;
   tenantsEntering?: unknown;
   dateTenantLeaving?: string;
   dateTenantEntering?: string;
+  enteringDate?: string;
+  leavingDate?: string;
   markedWontRenew?: boolean;
   // Disponibilité
   dateAvailableForRent?: string;

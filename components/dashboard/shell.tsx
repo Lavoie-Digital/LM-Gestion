@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   Settings,
+  ShieldCheck,
   Sparkles,
   X,
 } from "lucide-react";
@@ -71,7 +72,7 @@ function SidebarInner({
   onSelect: (href: string) => void;
 }) {
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
 
   async function handleSignOut() {
     await signOut();
@@ -93,6 +94,15 @@ function SidebarInner({
       </div>
 
       <div className="relative border-t border-line-dark p-4">
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className="mb-3 flex items-center gap-3 rounded-[3px] border border-line-dark bg-paper/5 px-3.5 py-2.5 text-sm text-ash transition-colors hover:bg-paper/10 hover:text-paper"
+          >
+            <ShieldCheck className="size-[1.05rem]" strokeWidth={1.6} />
+            Zone admin
+          </Link>
+        )}
         <div className="rounded-[4px] border border-line-dark bg-ink-2/60 p-3.5">
           <div className="flex items-center gap-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-paper font-[family-name:var(--font-jetbrains)] text-xs text-ink">
@@ -222,9 +232,17 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 <Menu className="size-5" />
               </button>
               <div className="min-w-0">
-                <h1 className="truncate font-display text-xl leading-none tracking-tight md:text-2xl">
-                  Tableau de bord
-                </h1>
+                <div className="flex items-center gap-2.5">
+                  <h1 className="truncate font-display text-xl leading-none tracking-tight md:text-2xl">
+                    Tableau de bord
+                  </h1>
+                  <span
+                    title="Données de démonstration — les vraies données s'afficheront une fois PlexFlow connecté."
+                    className="hidden shrink-0 rounded-full border border-line bg-paper-2 px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-[0.14em] text-smoke sm:inline"
+                  >
+                    Démonstration
+                  </span>
+                </div>
                 <p className="mt-1 hidden text-xs text-smoke sm:block">
                   {CLIENT.portfolioName} · 16 juin 2026
                 </p>
