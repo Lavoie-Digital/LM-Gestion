@@ -134,6 +134,97 @@ function SidebarInner({
   );
 }
 
+export type NotifItem = { id: string; label: string; detail?: string; at?: string; eventType?: string };
+
+function fmtNotifTime(at?: string): string {
+  if (!at) return "";
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return "";
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? d.toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString("fr-CA", { day: "numeric", month: "short" });
+}
+
+function NotificationBell({ notifications }: { notifications: NotifItem[] }) {
+  const [open, setOpen] = useState(false);
+  const [seenId, setSeenId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      setSeenId(localStorage.getItem("lm_notif_seen"));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const newestId = notifications[0]?.id ?? null;
+  const hasUnread = Boolean(newestId && newestId !== seenId);
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && newestId) {
+      setSeenId(newestId);
+      try {
+        localStorage.setItem("lm_notif_seen", newestId);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label="Notifications"
+        className="relative inline-flex size-9 items-center justify-center rounded-[3px] border border-line text-ink transition-colors hover:bg-paper-2"
+      >
+        <Bell className="size-[1.05rem]" strokeWidth={1.6} />
+        {hasUnread && (
+          <span className="absolute right-2 top-2 size-1.5 rounded-full bg-ink ring-2 ring-paper" />
+        )}
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
+          <div className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-[4px] border border-line bg-white shadow-[var(--shadow-lift)]">
+            <div className="flex items-center justify-between border-b border-line px-4 py-3">
+              <span className="text-sm font-medium text-ink">Notifications</span>
+              <span className="mono text-[0.6rem] uppercase tracking-[0.14em] text-smoke">
+                Activité récente
+              </span>
+            </div>
+            {notifications.length === 0 ? (
+              <p className="px-4 py-8 text-center text-xs text-smoke">Aucune notification pour l'instant.</p>
+            ) : (
+              <ul className="max-h-[22rem] divide-y divide-line-soft overflow-y-auto">
+                {notifications.slice(0, 12).map((n) => (
+                  <li key={n.id} className="flex items-start gap-3 px-4 py-3">
+                    <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-ink/40" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-snug text-ink">{n.label}</p>
+                      {n.detail && <p className="mt-0.5 text-xs text-smoke">{n.detail}</p>}
+                    </div>
+                    {n.at && (
+                      <span className="mono shrink-0 whitespace-nowrap pt-0.5 text-[0.6rem] uppercase tracking-wide text-smoke/80">
+                        {fmtNotifTime(n.at)}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function LiveTicker() {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -163,7 +254,15 @@ function LiveTicker() {
   );
 }
 
-export function DashboardShell({ children, live = false }: { children: ReactNode; live?: boolean }) {
+export function DashboardShell({
+  children,
+  live = false,
+  notifications = [],
+}: {
+  children: ReactNode;
+  live?: boolean;
+  notifications?: NotifItem[];
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [active, setActive] = useState("#apercu");
 
@@ -260,14 +359,7 @@ export function DashboardShell({ children, live = false }: { children: ReactNode
 
             <div className="flex items-center gap-3">
               <LiveTicker />
-              <button
-                type="button"
-                aria-label="Notifications"
-                className="relative inline-flex size-9 items-center justify-center rounded-[3px] border border-line text-ink transition-colors hover:bg-paper-2"
-              >
-                <Bell className="size-[1.05rem]" strokeWidth={1.6} />
-                <span className="absolute right-2 top-2 size-1.5 rounded-full bg-ink" />
-              </button>
+              <NotificationBell notifications={notifications} />
               <span className="flex size-9 items-center justify-center rounded-full bg-ink font-[family-name:var(--font-jetbrains)] text-xs text-paper">
                 GV
               </span>

@@ -3,6 +3,7 @@ import { formatCAD } from "@/lib/utils";
 import { Sparkline } from "@/components/charts/sparkline";
 
 export type PropertyRow = {
+  id?: string;
   name: string;
   neighborhood: string;
   occupied: number;
@@ -25,10 +26,13 @@ const DEMO_ROWS: PropertyRow[] = BUILDINGS.map((b) => ({
 export function PropertiesTable({
   rows = DEMO_ROWS,
   updatedLabel = "Mis à jour à l'instant",
+  onRowClick,
 }: {
   rows?: PropertyRow[];
   updatedLabel?: string;
+  onRowClick?: (row: PropertyRow) => void;
 }) {
+  const clickable = Boolean(onRowClick);
   return (
     <section
       id="immeubles"
@@ -58,8 +62,9 @@ export function PropertiesTable({
           <tbody>
             {rows.map((b) => (
               <tr
-                key={b.name}
-                className="border-b border-line-soft transition-colors last:border-0 hover:bg-paper-2/60"
+                key={b.id ?? b.name}
+                onClick={clickable ? () => onRowClick?.(b) : undefined}
+                className={`border-b border-line-soft transition-colors last:border-0 hover:bg-paper-2/60 ${clickable ? "cursor-pointer" : ""}`}
               >
                 <td className="px-6 py-4">
                   <p className="font-medium text-ink">{b.name}</p>

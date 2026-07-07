@@ -10,6 +10,7 @@ import { DashboardShell } from "@/components/dashboard/shell";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { PropertiesTable, type PropertyRow } from "@/components/dashboard/properties-table";
 import { ActivityFeed, type FeedItem } from "@/components/dashboard/activity-feed";
+import { BuildingDetail } from "@/components/dashboard/building-detail";
 import { AiAnalysis } from "@/components/dashboard/ai-analysis";
 import { AreaChart } from "@/components/charts/area-chart";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -30,7 +31,28 @@ type BuildingAgg = {
   wontRenew: number;
   monthlyRevenueCents: number;
 };
+type UnitRow = {
+  unitId: string;
+  propertyId: string;
+  label: string;
+  unitType?: string | number;
+  currentRentCents: number;
+  marketPriceCents?: number | null;
+  address?: string;
+  tenants?: string;
+  tenantsEmails?: string;
+  tenantsPhones?: string;
+  dateAvailableForRent?: string;
+  markedWontRenew: boolean;
+};
 type ActivityApi = { id: string; eventType?: string; label: string; detail: string; at?: string };
+type SnapshotApi = {
+  date: string;
+  monthlyRevenueCents: number;
+  unitCount: number;
+  buildingCount: number;
+  wontRenewCount: number;
+};
 type DashResponse = {
   configured: boolean;
   isAdmin?: boolean;
@@ -44,8 +66,12 @@ type DashResponse = {
     wontRenewRevenueCents: number;
   };
   byBuilding?: BuildingAgg[];
+  units?: UnitRow[];
   owners?: string[];
+  allOwners?: string[];
+  viewingAs?: string | null;
   activity?: ActivityApi[];
+  history?: SnapshotApi[];
   error?: string;
 };
 
@@ -159,21 +185,60 @@ function shortTime(at?: string): string {
   return d.toLocaleString("fr-CA", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-function LiveView({ data }: { data: DashResponse }) {
+function LiveView({
+  data,
+  viewAs,
+  onViewAsChange,
+}: {
+  data: DashResponse;
+  viewAs: string;
+  onViewAsChange: (v: string) => void;
+}) {
   const k = data.kpis!;
   const byBuilding = data.byBuilding ?? [];
+  const allUnits = data.units ?? [];
   const cad = (cents: number) => formatCAD(Math.round(cents / 100));
+  const [selected, setSelected] = useState<BuildingAgg | null>(null);
+
+  // Historique (croissant). Deltas & sparklines dès qu'on a ≥ 2 points.
+  const hist = data.history ?? [];
+  const hasHist = hist.length >= 2;
+  const prev = hasHist ? hist[hist.length - 2] : undefined;
+  const spark = (pick: (s: SnapshotApi) => number) => (hasHist ? hist.slice(-14).map(pick) : undefined);
+
+  const delta = (curr: number, before?: number): { label: string; trend: "up" | "down" | "flat" } => {
+    if (before === undefined || before === 0) return { label: "Depuis la connexion PlexFlow", trend: "flat" };
+    const diff = curr - before;
+    if (diff === 0) return { label: "Stable depuis hier", trend: "flat" };
+    const pct = (diff / before) * 100;
+    const sign = diff > 0 ? "+" : "−";
+    return {
+      label: `${sign}${Math.abs(pct).toLocaleString("fr-CA", { maximumFractionDigits: 1 })} % depuis hier`,
+      trend: diff > 0 ? "up" : "down",
+    };
+  };
+
+  const revD = delta(k.monthlyRevenueCents, prev?.monthlyRevenueCents);
+  const unitD = delta(k.unitCount, prev?.unitCount);
 
   const kpis = [
-    { label: "Revenu locatif mensuel", value: Math.round(k.monthlyRevenueCents / 100), format: formatCAD, deltaLabel: "Rôle des loyers · temps réel", trend: "flat" as const, icon: Wallet },
-    { label: "Logements gérés", value: k.unitCount, format: round, deltaLabel: data.isAdmin ? "Tout le parc" : "Votre parc", trend: "flat" as const, icon: Building2 },
-    { label: "Immeubles", value: k.buildingCount, format: round, deltaLabel: `${data.meta?.ownerCount ?? 0} propriétaire(s)`, trend: "flat" as const, icon: Layers },
-    { label: "Baux à renouveler", value: k.wontRenewCount, format: round, deltaLabel: `${cad(k.wontRenewRevenueCents)} en jeu`, trend: "flat" as const, icon: DoorOpen },
+    { label: "Revenu locatif mensuel", value: Math.round(k.monthlyRevenueCents / 100), format: formatCAD, deltaLabel: revD.label, trend: revD.trend, spark: spark((s) => Math.round(s.monthlyRevenueCents / 100)), icon: Wallet },
+    { label: "Logements gérés", value: k.unitCount, format: round, deltaLabel: hasHist ? unitD.label : data.isAdmin ? "Tout le parc" : "Votre parc", trend: unitD.trend, spark: spark((s) => s.unitCount), icon: Building2 },
+    { label: "Immeubles", value: k.buildingCount, format: round, deltaLabel: `${data.meta?.ownerCount ?? 0} propriétaire(s)`, trend: "flat" as const, spark: spark((s) => s.buildingCount), icon: Layers },
+    { label: "Baux à renouveler", value: k.wontRenewCount, format: round, deltaLabel: `${cad(k.wontRenewRevenueCents)} en jeu`, trend: "flat" as const, spark: spark((s) => s.wontRenewCount), icon: DoorOpen },
   ];
+
+  const monthLabel = (date: string) =>
+    new Date(`${date}T12:00:00`).toLocaleDateString("fr-CA", { day: "numeric", month: "short" });
+  const revenueSeries = hist.map((s) => ({ month: monthLabel(s.date), value: Math.round(s.monthlyRevenueCents / 100) }));
+  const revFirst = hist[0]?.monthlyRevenueCents ?? 0;
+  const revLast = hist[hist.length - 1]?.monthlyRevenueCents ?? 0;
+  const revGrowthPct = revFirst ? ((revLast - revFirst) / revFirst) * 100 : 0;
 
   const rows: PropertyRow[] = byBuilding.map((b) => {
     const occupied = b.units - b.wontRenew;
     return {
+      id: b.propertyId,
       name: b.label,
       neighborhood: b.city ?? `Immeuble ${b.propertyId}`,
       occupied,
@@ -192,6 +257,29 @@ function LiveView({ data }: { data: DashResponse }) {
 
   return (
     <>
+      {data.isAdmin && (data.allOwners?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-[3px] border border-line bg-white px-4 py-3">
+          <span className="kicker text-smoke">Admin · Voir en tant que</span>
+          <select
+            value={viewAs}
+            onChange={(e) => onViewAsChange(e.target.value)}
+            className="h-9 min-w-[16rem] max-w-full rounded-[2px] border border-line bg-white px-2.5 text-sm text-ink outline-none focus:border-ink"
+          >
+            <option value="">Tous les propriétaires (admin)</option>
+            {data.allOwners!.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+          {data.viewingAs && (
+            <span className="rounded-full bg-ink/5 px-2.5 py-1 text-xs text-ink">
+              Vue propriétaire : {data.viewingAs}
+            </span>
+          )}
+        </div>
+      )}
+
       <section id="apercu" className="scroll-mt-24">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {kpis.map((kpi) => (
@@ -199,6 +287,36 @@ function LiveView({ data }: { data: DashResponse }) {
           ))}
         </div>
       </section>
+
+      {/* Évolution des revenus — dès qu'on a ≥ 2 instantanés */}
+      {hasHist ? (
+        <div className="rounded-[4px] border border-line bg-white p-6 text-ink">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl tracking-tight">Évolution des revenus locatifs</h2>
+              <p className="mt-1 text-xs text-smoke">{hist.length} jours suivis · loyers PlexFlow</p>
+            </div>
+            <div className="text-right">
+              <p className="font-display text-2xl tracking-tight tabular">{cad(revLast)}</p>
+              <p className="mt-0.5 text-xs text-smoke">
+                {revGrowthPct >= 0 ? "▲ +" : "▼ "}
+                {Math.abs(revGrowthPct).toLocaleString("fr-CA", { maximumFractionDigits: 1 })} % depuis le début du suivi
+              </p>
+            </div>
+          </div>
+          <div className="mt-6">
+            <AreaChart data={revenueSeries} height={220} />
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-[4px] border border-dashed border-line bg-paper-2/40 p-6 text-ink">
+          <h2 className="font-display text-xl tracking-tight">Évolution des revenus locatifs</h2>
+          <p className="mt-2 max-w-xl text-sm text-smoke">
+            La courbe de tendance se construit à partir d'aujourd'hui : un instantané est
+            capturé chaque jour. Elle apparaîtra dès le deuxième jour de suivi.
+          </p>
+        </div>
+      )}
 
       <div className="rounded-[4px] border border-line bg-white p-6 text-ink">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -221,10 +339,23 @@ function LiveView({ data }: { data: DashResponse }) {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <PropertiesTable rows={rows} updatedLabel="Source · PlexFlow" />
+          <PropertiesTable
+            rows={rows}
+            updatedLabel="Source · PlexFlow"
+            onRowClick={(row) => setSelected(byBuilding.find((b) => b.propertyId === row.id) ?? null)}
+          />
         </div>
         <ActivityFeed items={activity} emptyLabel="Les événements PlexFlow (paiements, baux, vacances…) apparaîtront ici en temps réel." />
       </div>
+
+      {selected && (
+        <BuildingDetail
+          title={selected.label}
+          subtitle={selected.city}
+          units={allUnits.filter((u) => u.propertyId === selected.propertyId)}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </>
   );
 }
@@ -237,6 +368,7 @@ export default function DashboardPage() {
   const { user, loading, isAllowed, configured } = useAuth();
   const [data, setData] = useState<DashResponse | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [viewAs, setViewAs] = useState(""); // admin : voir en tant que ce sous-compte
 
   useEffect(() => {
     if (!loading && (!configured || !user || !isAllowed)) router.replace("/connexion");
@@ -246,7 +378,8 @@ export default function DashboardPage() {
     if (!user) return;
     try {
       const token = await user.getIdToken();
-      const res = await fetch("/api/dashboard", {
+      const qs = viewAs ? `?viewAs=${encodeURIComponent(viewAs)}` : "";
+      const res = await fetch(`/api/dashboard${qs}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
@@ -256,7 +389,7 @@ export default function DashboardPage() {
     } finally {
       setFetching(false);
     }
-  }, [user]);
+  }, [user, viewAs]);
 
   useEffect(() => {
     if (loading || !user || !isAllowed) return;
@@ -285,8 +418,16 @@ export default function DashboardPage() {
     else banner = "Aucune donnée PlexFlow pour l'instant — démonstration.";
   }
 
+  const notifications = (data?.activity ?? []).map((a) => ({
+    id: a.id,
+    label: a.label,
+    detail: a.detail,
+    at: a.at,
+    eventType: a.eventType,
+  }));
+
   return (
-    <DashboardShell live={hasReal}>
+    <DashboardShell live={hasReal} notifications={notifications}>
       <div className="space-y-6 md:space-y-8">
         {banner && (
           <div className="flex items-center gap-2.5 rounded-[3px] border border-line bg-paper-2/60 px-4 py-2.5 text-xs text-smoke">
@@ -294,7 +435,11 @@ export default function DashboardPage() {
             <span>{banner}</span>
           </div>
         )}
-        {hasReal && data ? <LiveView data={data} /> : <DemoView />}
+        {hasReal && data ? (
+          <LiveView data={data} viewAs={viewAs} onViewAsChange={setViewAs} />
+        ) : (
+          <DemoView />
+        )}
       </div>
     </DashboardShell>
   );

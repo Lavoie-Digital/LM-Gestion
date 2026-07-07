@@ -11,7 +11,7 @@
  * ------------------------------------------------------------------ */
 
 import { adminAuth, adminConfigured, adminDb, authConfigured } from "@/lib/firebase-admin";
-import { getPortfolio } from "@/lib/plexflow-store";
+import { getPortfolio, getSnapshots, listSubaccounts, writeSnapshotIfNeeded } from "@/lib/plexflow-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -53,11 +53,34 @@ export async function GET(request: Request) {
   if (!email) return Response.json({ error: "Compte sans courriel." }, { status: 403 });
 
   const isAdmin = ADMIN_EMAILS.includes(email);
-  const subaccounts = isAdmin ? null : await subaccountsForOwner(email);
+
+  // « Voir en tant que » : réservé à l'admin, pour vérifier le périmètre d'un
+  // propriétaire pendant les tests. Ignoré (sécurité) pour un non-admin.
+  const viewAs = new URL(request.url).searchParams.get("viewAs")?.trim() || "";
+  const impersonating = isAdmin && viewAs;
+
+  const subaccounts = isAdmin
+    ? impersonating
+      ? [viewAs]
+      : null
+    : await subaccountsForOwner(email);
 
   try {
     const portfolio = await getPortfolio(subaccounts);
-    return Response.json({ configured: true, isAdmin, email, ...portfolio });
+    // Capture l'instantané du jour (une fois/jour) puis renvoie l'historique.
+    await writeSnapshotIfNeeded(subaccounts, portfolio.kpis).catch(() => {});
+    const history = await getSnapshots(subaccounts);
+    // Liste complète des sous-comptes pour le sélecteur admin.
+    const allOwners = isAdmin ? await listSubaccounts().catch(() => []) : [];
+    return Response.json({
+      configured: true,
+      isAdmin,
+      email,
+      viewingAs: impersonating ? viewAs : null,
+      allOwners,
+      ...portfolio,
+      history,
+    });
   } catch (err) {
     return Response.json(
       { configured: true, isAdmin, email, error: `PlexFlow: ${(err as Error).message}` },
