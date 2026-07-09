@@ -11,6 +11,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { PropertiesTable, type PropertyRow } from "@/components/dashboard/properties-table";
 import { ActivityFeed, type FeedItem } from "@/components/dashboard/activity-feed";
 import { BuildingDetail } from "@/components/dashboard/building-detail";
+import { DocumentsSection, type DocMeta } from "@/components/dashboard/documents";
 import { AiAnalysis } from "@/components/dashboard/ai-analysis";
 import { AreaChart } from "@/components/charts/area-chart";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -187,10 +188,12 @@ function shortTime(at?: string): string {
 
 function LiveView({
   data,
+  docs,
   viewAs,
   onViewAsChange,
 }: {
   data: DashResponse;
+  docs: DocMeta[];
   viewAs: string;
   onViewAsChange: (v: string) => void;
 }) {
@@ -348,6 +351,8 @@ function LiveView({
         <ActivityFeed items={activity} emptyLabel="Les événements PlexFlow (paiements, baux, vacances…) apparaîtront ici en temps réel." />
       </div>
 
+      <DocumentsSection docs={docs} />
+
       {selected && (
         <BuildingDetail
           title={selected.label}
@@ -367,6 +372,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, loading, isAllowed, configured } = useAuth();
   const [data, setData] = useState<DashResponse | null>(null);
+  const [docs, setDocs] = useState<DocMeta[]>([]);
   const [fetching, setFetching] = useState(true);
   const [viewAs, setViewAs] = useState(""); // admin : voir en tant que ce sous-compte
 
@@ -378,12 +384,15 @@ export default function DashboardPage() {
     if (!user) return;
     try {
       const token = await user.getIdToken();
+      const headers = { Authorization: `Bearer ${token}` };
       const qs = viewAs ? `?viewAs=${encodeURIComponent(viewAs)}` : "";
-      const res = await fetch(`/api/dashboard${qs}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      setData(await res.json());
+      const [dashRes, docsRes] = await Promise.all([
+        fetch(`/api/dashboard${qs}`, { headers, cache: "no-store" }),
+        fetch(`/api/documents${qs}`, { headers, cache: "no-store" }),
+      ]);
+      setData(await dashRes.json());
+      const dj = await docsRes.json().catch(() => ({ documents: [] }));
+      setDocs(Array.isArray(dj.documents) ? dj.documents : []);
     } catch {
       setData({ configured: false });
     } finally {
@@ -436,7 +445,7 @@ export default function DashboardPage() {
           </div>
         )}
         {hasReal && data ? (
-          <LiveView data={data} viewAs={viewAs} onViewAsChange={setViewAs} />
+          <LiveView data={data} docs={docs} viewAs={viewAs} onViewAsChange={setViewAs} />
         ) : (
           <DemoView />
         )}

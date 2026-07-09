@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// ------------------------------------------------------------------ //
+// Règles de sécurité Firebase Storage — LM Gestion Immobilière
+//
+// Les documents clients sont déposés par le SERVEUR (Admin SDK, qui contourne
+// ces règles) et téléchargés via des URL SIGNÉES temporaires (authentifiées au
+// niveau GCS, indépendantes de ces règles). Le navigateur n'a donc JAMAIS besoin
+// d'un accès direct → on refuse tout, pour protéger les documents (données perso).
+// ------------------------------------------------------------------ //
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

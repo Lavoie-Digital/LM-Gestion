@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Loader2, LogOut, Plus, Search, ShieldCheck, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Download, FileText, Loader2, LogOut, Plus, Search, ShieldCheck, Trash2, Upload, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatCAD } from "@/lib/utils";
+import type { DocMeta } from "@/components/dashboard/documents";
 
 type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[] };
 type Admins = { envAdmins: string[]; dbAdmins: { id: string; email: string }[] };
@@ -25,6 +26,10 @@ export default function AdminPage() {
   const [query, setQuery] = useState("");
   const [emailInputs, setEmailInputs] = useState<Record<string, string>>({});
   const [newAdmin, setNewAdmin] = useState("");
+  // Documents par sous-compte
+  const [openDocs, setOpenDocs] = useState<string | null>(null);
+  const [docsBySub, setDocsBySub] = useState<Record<string, DocMeta[]>>({});
+  const [uploading, setUploading] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.replace("/connexion");
@@ -105,6 +110,59 @@ export default function AdminPage() {
     run(`rm-admin-${email}`, () =>
       authedFetch("/api/admin/admins", { method: "DELETE", body: JSON.stringify({ email }) })
     );
+
+  // ---- Documents ----
+  const loadDocs = useCallback(
+    async (name: string) => {
+      try {
+        const res = await authedFetch(`/api/admin/documents?subaccount=${encodeURIComponent(name)}`);
+        const data = await res.json();
+        setDocsBySub((m) => ({ ...m, [name]: Array.isArray(data.documents) ? data.documents : [] }));
+      } catch {
+        setDocsBySub((m) => ({ ...m, [name]: [] }));
+      }
+    },
+    [authedFetch]
+  );
+
+  function toggleDocs(name: string) {
+    if (openDocs === name) {
+      setOpenDocs(null);
+      return;
+    }
+    setOpenDocs(name);
+    if (!docsBySub[name]) loadDocs(name);
+  }
+
+  async function uploadDoc(name: string, file: File) {
+    setUploading(name);
+    setError(null);
+    try {
+      const token = await user!.getIdToken();
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("subaccount", name);
+      const res = await fetch("/api/admin/documents", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }, // pas de Content-Type : le navigateur gère le multipart
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Dépôt impossible.");
+      await loadDocs(name);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Dépôt impossible.");
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  const deleteDoc = (name: string, docId: string) =>
+    run(`doc-${docId}`, async () => {
+      const res = await authedFetch("/api/admin/documents", { method: "DELETE", body: JSON.stringify({ id: docId }) });
+      await loadDocs(name);
+      return res;
+    });
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -284,6 +342,68 @@ export default function AdminPage() {
                     {busy === `link-${r.name}` ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />} Associer
                   </button>
                 </form>
+
+                {/* Documents du sous-compte */}
+                <div className="mt-3 border-t border-line-soft pt-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleDocs(r.name)}
+                    className="inline-flex items-center gap-1.5 text-xs text-smoke hover:text-ink"
+                  >
+                    <FileText className="size-3.5" />
+                    Documents{docsBySub[r.name] ? ` (${docsBySub[r.name].length})` : ""}
+                  </button>
+
+                  {openDocs === r.name && (
+                    <div className="mt-3">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-[2px] border border-line px-3 py-2 text-sm text-ink hover:bg-paper-2">
+                        {uploading === r.name ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                        Déposer un document
+                        <input
+                          type="file"
+                          className="hidden"
+                          disabled={uploading === r.name}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) uploadDoc(r.name, f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+
+                      <ul className="mt-3 flex flex-col divide-y divide-line-soft">
+                        {(docsBySub[r.name] ?? []).map((d) => (
+                          <li key={d.id} className="flex items-center gap-3 py-2 text-sm">
+                            <FileText className="size-4 shrink-0 text-smoke" />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-ink">{d.name}</p>
+                              <p className="text-xs text-smoke">
+                                {new Date(d.uploadedAt).toLocaleString("fr-CA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                            </div>
+                            {d.url && (
+                              <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-smoke hover:text-ink" aria-label="Télécharger">
+                                <Download className="size-4" />
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => deleteDoc(r.name, d.id)}
+                              disabled={busy === `doc-${d.id}`}
+                              className="text-smoke hover:text-red-600 disabled:opacity-50"
+                              aria-label="Supprimer"
+                            >
+                              {busy === `doc-${d.id}` ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                            </button>
+                          </li>
+                        ))}
+                        {(docsBySub[r.name]?.length ?? 0) === 0 && (
+                          <li className="py-2 text-xs text-smoke">Aucun document déposé.</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </li>
             ))}
             {filtered.length === 0 && (

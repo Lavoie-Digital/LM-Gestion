@@ -28,7 +28,7 @@ const NAV = [
   { label: "Immeubles", href: "#immeubles", icon: Building2 },
   { label: "Analyse IA", href: "#analyse-ia", icon: Sparkles },
   { label: "Activité", href: "#activite", icon: Activity },
-  { label: "Documents", href: "#", icon: FileText },
+  { label: "Documents", href: "#documents", icon: FileText },
   { label: "Paramètres", href: "#", icon: Settings },
 ];
 

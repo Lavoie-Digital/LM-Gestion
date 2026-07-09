@@ -50,6 +50,21 @@ export async function subaccountsForOwnerEmail(email: string): Promise<string[]>
   return [...names];
 }
 
+/** Courriels associés à un sous-compte (pour les notifications). */
+export async function emailsForSubaccount(subaccount: string): Promise<string[]> {
+  if (!adminConfigured()) return [];
+  const snap = await adminDb()
+    .collection("owners")
+    .where("plexflowSubaccount", "==", subaccount.trim())
+    .get();
+  const set = new Set<string>();
+  for (const d of snap.docs) {
+    const e = d.get("email");
+    if (typeof e === "string" && e) set.add(e.toLowerCase());
+  }
+  return [...set];
+}
+
 /** Vrai si ce courriel correspond à un profil client (donc autorisé à se connecter). */
 export async function isOwnerEmail(email: string): Promise<boolean> {
   if (!adminConfigured()) return false;

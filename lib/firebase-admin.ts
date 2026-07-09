@@ -15,8 +15,10 @@
 import { cert, getApps, initializeApp, type App, type ServiceAccount } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth, type Auth } from "firebase-admin/auth";
+import { getStorage } from "firebase-admin/storage";
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+const STORAGE_BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
 
 function loadServiceAccount(): (ServiceAccount & { project_id?: string }) | null {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
@@ -62,4 +64,10 @@ export function adminAuth(): Auth {
 /** Firestore serveur (droits admin). Requiert le compte de service. */
 export function adminDb(): Firestore {
   return getFirestore(getNamedApp("lm-db", true));
+}
+
+/** Bucket Firebase Storage serveur (documents clients). Requiert le compte de service. */
+export function adminBucket() {
+  if (!STORAGE_BUCKET) throw new Error("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET manquant.");
+  return getStorage(getNamedApp("lm-db", true)).bucket(STORAGE_BUCKET);
 }
