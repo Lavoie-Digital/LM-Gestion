@@ -304,6 +304,11 @@ function LiveView({
         </div>
       </section>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <DocumentsSection docs={docs} />
+        <NotesSection notes={notes} />
+      </div>
+
       {/* Évolution des revenus — dès qu'on a ≥ 2 instantanés */}
       {hasHist ? (
         <div className="rounded-[4px] border border-line bg-white p-6 text-ink">
@@ -362,11 +367,6 @@ function LiveView({
           />
         </div>
         <ActivityFeed items={activity} emptyLabel="Les événements PlexFlow (paiements, baux, vacances…) apparaîtront ici en temps réel." />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <DocumentsSection docs={docs} />
-        <NotesSection notes={notes} />
       </div>
 
       {selected && (
