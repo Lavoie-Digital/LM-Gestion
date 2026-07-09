@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, Loader2, Lock, Mail } from "lucide-react";
 import { easeLux } from "@/lib/motion";
@@ -57,8 +57,11 @@ export default function ConnexionPage() {
   const [usePassword, setUsePassword] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
 
-  // Ouverture d'un lien magique reçu par courriel → termine la connexion.
+  // Ouverture d'un lien magique reçu par courriel → termine la connexion (une seule fois).
+  const linkHandled = useRef(false);
   useEffect(() => {
+    if (linkHandled.current) return;
+    linkHandled.current = true;
     completeEmailLinkSignIn().catch((err) => setError(authErrorMessage(err)));
   }, [completeEmailLinkSignIn]);
 

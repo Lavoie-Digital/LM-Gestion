@@ -119,20 +119,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       sendLoginLink: async (email) => {
         const clean = email.trim().toLowerCase();
+        // Le courriel est aussi passé dans le lien (param `e`) → évite de le
+        // redemander si le lien est ouvert sur un autre appareil/navigateur.
         await sendSignInLinkToEmail(getFirebaseAuth(), clean, {
-          url: `${window.location.origin}/connexion`,
+          url: `${window.location.origin}/connexion?e=${encodeURIComponent(clean)}`,
           handleCodeInApp: true,
         });
         window.localStorage.setItem(EMAIL_LINK_KEY, clean);
       },
       completeEmailLinkSignIn: async () => {
         const auth = getFirebaseAuth();
+        if (typeof window === "undefined") return false;
         if (!isSignInWithEmailLink(auth, window.location.href)) return false;
-        let email = window.localStorage.getItem(EMAIL_LINK_KEY);
+        const fromUrl = new URL(window.location.href).searchParams.get("e");
+        let email = window.localStorage.getItem(EMAIL_LINK_KEY) || fromUrl || "";
         if (!email) email = window.prompt("Confirmez votre courriel pour terminer la connexion :") || "";
         if (!email) return false;
-        await signInWithEmailLink(auth, email.trim().toLowerCase(), window.location.href);
-        window.localStorage.removeItem(EMAIL_LINK_KEY);
+        try {
+          await signInWithEmailLink(auth, email.trim().toLowerCase(), window.location.href);
+        } finally {
+          window.localStorage.removeItem(EMAIL_LINK_KEY);
+          // Nettoie l'URL pour ne pas relancer la connexion (donc plus de prompt).
+          window.history.replaceState({}, "", "/connexion");
+        }
         return true;
       },
       signOut: async () => {
