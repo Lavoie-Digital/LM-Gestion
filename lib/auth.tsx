@@ -5,6 +5,9 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signInWithEmailAndPassword,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
@@ -37,8 +40,14 @@ type AuthContextValue = {
   isAdmin: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  /** Envoie un lien de connexion sans mot de passe (crée le compte au 1er clic). */
+  sendLoginLink: (email: string) => Promise<void>;
+  /** À l'ouverture d'un lien magique : termine la connexion. Renvoie true si traité. */
+  completeEmailLinkSignIn: () => Promise<boolean>;
   signOut: () => Promise<void>;
 };
+
+const EMAIL_LINK_KEY = "lm_email_link";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -107,6 +116,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signInWithEmail: async (email, password) => {
         await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+      },
+      sendLoginLink: async (email) => {
+        const clean = email.trim().toLowerCase();
+        await sendSignInLinkToEmail(getFirebaseAuth(), clean, {
+          url: `${window.location.origin}/connexion`,
+          handleCodeInApp: true,
+        });
+        window.localStorage.setItem(EMAIL_LINK_KEY, clean);
+      },
+      completeEmailLinkSignIn: async () => {
+        const auth = getFirebaseAuth();
+        if (!isSignInWithEmailLink(auth, window.location.href)) return false;
+        let email = window.localStorage.getItem(EMAIL_LINK_KEY);
+        if (!email) email = window.prompt("Confirmez votre courriel pour terminer la connexion :") || "";
+        if (!email) return false;
+        await signInWithEmailLink(auth, email.trim().toLowerCase(), window.location.href);
+        window.localStorage.removeItem(EMAIL_LINK_KEY);
+        return true;
       },
       signOut: async () => {
         await firebaseSignOut(getFirebaseAuth());

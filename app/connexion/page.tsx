@@ -39,16 +39,48 @@ function authErrorMessage(err: unknown): string {
 
 export default function ConnexionPage() {
   const router = useRouter();
-  const { user, loading: authLoading, configured, isAllowed, signInWithGoogle, signInWithEmail, signOut } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    configured,
+    isAllowed,
+    signInWithGoogle,
+    signInWithEmail,
+    sendLoginLink,
+    completeEmailLinkSignIn,
+    signOut,
+  } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usePassword, setUsePassword] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
+
+  // Ouverture d'un lien magique reçu par courriel → termine la connexion.
+  useEffect(() => {
+    completeEmailLinkSignIn().catch((err) => setError(authErrorMessage(err)));
+  }, [completeEmailLinkSignIn]);
 
   // Connecté + autorisé → vers le tableau de bord.
   useEffect(() => {
     if (!authLoading && user && isAllowed) router.replace("/tableau-de-bord");
   }, [authLoading, user, isAllowed, router]);
+
+  async function sendLink(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy || !email.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await sendLoginLink(email);
+      setLinkSent(true);
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -199,66 +231,98 @@ export default function ConnexionPage() {
                   <span className="h-px flex-1 bg-line" />
                 </div>
 
-                <form onSubmit={submitEmail} className="flex flex-col gap-5">
-                  <div>
-                    <label htmlFor="email" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
-                      Courriel
-                    </label>
-                    <div className="relative">
-                      <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
-                      <input
-                        id="email"
-                        type="email"
-                        autoComplete="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="vous@exemple.com"
-                        className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="password" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
-                      Mot de passe
-                    </label>
-                    <div className="relative">
-                      <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
-                      <input
-                        id="password"
-                        type="password"
-                        autoComplete="current-password"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
-                      />
-                    </div>
-                  </div>
-
-                  {error && (
-                    <p className="rounded-[2px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {error}
+                {linkSent ? (
+                  <div className="rounded-[2px] border border-line bg-paper-2/60 p-5 text-sm leading-relaxed text-smoke">
+                    <p className="font-medium text-ink">Lien envoyé ✓</p>
+                    <p className="mt-1">
+                      Ouvrez le courriel envoyé à <strong className="text-ink">{email}</strong> et
+                      cliquez sur le lien pour vous connecter. (Pensez à vérifier vos indésirables.)
                     </p>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => setLinkSent(false)}
+                      className="mt-3 text-ink underline-offset-4 hover:underline"
+                    >
+                      Utiliser un autre courriel
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={usePassword ? submitEmail : sendLink} className="flex flex-col gap-5">
+                    <div>
+                      <label htmlFor="email" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
+                        Courriel
+                      </label>
+                      <div className="relative">
+                        <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
+                        <input
+                          id="email"
+                          type="email"
+                          autoComplete="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="vous@exemple.com"
+                          className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
+                        />
+                      </div>
+                    </div>
 
-                  <Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
-                    {busy ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        Connexion…
-                      </>
-                    ) : (
-                      "Se connecter"
+                    {usePassword && (
+                      <div>
+                        <label htmlFor="password" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
+                          Mot de passe
+                        </label>
+                        <div className="relative">
+                          <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
+                          <input
+                            id="password"
+                            type="password"
+                            autoComplete="current-password"
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
+                          />
+                        </div>
+                      </div>
                     )}
-                  </Button>
-                </form>
+
+                    {error && (
+                      <p className="rounded-[2px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {error}
+                      </p>
+                    )}
+
+                    <Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
+                      {busy ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" />
+                          {usePassword ? "Connexion…" : "Envoi du lien…"}
+                        </>
+                      ) : usePassword ? (
+                        "Se connecter"
+                      ) : (
+                        "Recevoir un lien de connexion"
+                      )}
+                    </Button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUsePassword((v) => !v);
+                        setError(null);
+                      }}
+                      className="text-center text-xs text-smoke underline-offset-4 hover:text-ink hover:underline"
+                    >
+                      {usePassword ? "← Recevoir plutôt un lien par courriel" : "J'ai déjà un mot de passe"}
+                    </button>
+                  </form>
+                )}
 
                 <p className="mt-6 text-center text-xs leading-relaxed text-smoke">
-                  Accès réservé à nos clients. Pour obtenir vos identifiants, communiquez avec
-                  votre gestionnaire.
+                  Accès réservé aux clients. Sans mot de passe : connectez-vous avec Google ou
+                  recevez un lien — aucun compte à créer.
                 </p>
               </>
             )}
