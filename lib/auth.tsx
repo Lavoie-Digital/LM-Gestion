@@ -44,28 +44,64 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  // Accès déterminé côté serveur (/api/access) : admin OU propriétaire lié.
+  // null = pas encore résolu (tant qu'un utilisateur est connecté).
+  const [access, setAccess] = useState<{ allowed: boolean; isAdmin: boolean } | null>(null);
   const configured = firebaseConfigured();
 
   useEffect(() => {
     if (!configured) {
-      setLoading(false);
+      setAuthLoading(false);
       return;
     }
     const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (u) => {
       setUser(u);
-      setLoading(false);
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, [configured]);
 
+  // Résout l'accès via le serveur (repli sur la liste blanche env si indisponible).
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setAccess(null);
+      return;
+    }
+    setAccess(null);
+    (async () => {
+      const email = user.email?.toLowerCase();
+      const envFallback = {
+        allowed: Boolean(email && ALLOWED_EMAILS.includes(email)),
+        isAdmin: Boolean(email && ADMIN_EMAILS.includes(email)),
+      };
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/access", { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (cancelled) return;
+        setAccess(
+          typeof data?.allowed === "boolean"
+            ? { allowed: data.allowed, isAdmin: Boolean(data.isAdmin) }
+            : envFallback
+        );
+      } catch {
+        if (!cancelled) setAccess(envFallback);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      loading,
+      loading: authLoading || (Boolean(user) && access === null),
       configured,
-      isAllowed: Boolean(user?.email && ALLOWED_EMAILS.includes(user.email.toLowerCase())),
-      isAdmin: Boolean(user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())),
+      isAllowed: access?.allowed ?? false,
+      isAdmin: access?.isAdmin ?? false,
       signInWithGoogle: async () => {
         await signInWithPopup(getFirebaseAuth(), googleProvider);
       },
@@ -76,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await firebaseSignOut(getFirebaseAuth());
       },
     }),
-    [user, loading, configured]
+    [user, authLoading, access, configured]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

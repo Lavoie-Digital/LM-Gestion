@@ -203,6 +203,22 @@ export async function listSubaccounts(): Promise<string[]> {
   return [...set].sort();
 }
 
+export type SubaccountInfo = { name: string; unitCount: number; monthlyRevenueCents: number };
+
+/** Sous-comptes avec nb de logements + revenu (pour la gestion des accès dans /admin). */
+export async function listSubaccountsDetailed(): Promise<SubaccountInfo[]> {
+  const res = await cached("plexflow:units", 300_000, () => getUnits());
+  const map = new Map<string, SubaccountInfo>();
+  for (const u of res?.units ?? []) {
+    if (typeof u.subaccount !== "string" || !u.subaccount) continue;
+    const info = map.get(u.subaccount) ?? { name: u.subaccount, unitCount: 0, monthlyRevenueCents: 0 };
+    info.unitCount++;
+    info.monthlyRevenueCents += toCents(u.currentRentTotalCents);
+    map.set(u.subaccount, info);
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /* ------------------------------------------------------------------ *
  * Instantanés quotidiens (historique) → alimente les courbes de tendance.
  * L'API REST ne donne que l'état courant ; on capture un point par jour et par
