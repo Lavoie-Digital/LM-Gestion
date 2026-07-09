@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, Loader2, Lock, Mail } from "lucide-react";
+import { ArrowLeft, Loader2, Mail } from "lucide-react";
 import { easeLux } from "@/lib/motion";
 import { Logo } from "@/components/site/logo";
 import { Button } from "@/components/ui/button";
@@ -45,16 +45,13 @@ export default function ConnexionPage() {
     configured,
     isAllowed,
     signInWithGoogle,
-    signInWithEmail,
     sendLoginLink,
     completeEmailLinkSignIn,
     signOut,
   } = useAuth();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [usePassword, setUsePassword] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
 
   // Ouverture d'un lien magique reçu par courriel → termine la connexion (une seule fois).
@@ -78,20 +75,6 @@ export default function ConnexionPage() {
     try {
       await sendLoginLink(email);
       setLinkSent(true);
-    } catch (err) {
-      setError(authErrorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function submitEmail(e: React.FormEvent) {
-    e.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await signInWithEmail(email, password);
     } catch (err) {
       setError(authErrorMessage(err));
     } finally {
@@ -250,7 +233,7 @@ export default function ConnexionPage() {
                     </button>
                   </div>
                 ) : (
-                  <form onSubmit={usePassword ? submitEmail : sendLink} className="flex flex-col gap-5">
+                  <form onSubmit={sendLink} className="flex flex-col gap-5">
                     <div>
                       <label htmlFor="email" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
                         Courriel
@@ -270,27 +253,6 @@ export default function ConnexionPage() {
                       </div>
                     </div>
 
-                    {usePassword && (
-                      <div>
-                        <label htmlFor="password" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
-                          Mot de passe
-                        </label>
-                        <div className="relative">
-                          <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
-                          <input
-                            id="password"
-                            type="password"
-                            autoComplete="current-password"
-                            required
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
-                            className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
-                          />
-                        </div>
-                      </div>
-                    )}
-
                     {error && (
                       <p className="rounded-[2px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
                         {error}
@@ -301,25 +263,12 @@ export default function ConnexionPage() {
                       {busy ? (
                         <>
                           <Loader2 className="size-4 animate-spin" />
-                          {usePassword ? "Connexion…" : "Envoi du lien…"}
+                          Envoi du lien…
                         </>
-                      ) : usePassword ? (
-                        "Se connecter"
                       ) : (
                         "Recevoir un lien de connexion"
                       )}
                     </Button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUsePassword((v) => !v);
-                        setError(null);
-                      }}
-                      className="text-center text-xs text-smoke underline-offset-4 hover:text-ink hover:underline"
-                    >
-                      {usePassword ? "← Recevoir plutôt un lien par courriel" : "J'ai déjà un mot de passe"}
-                    </button>
                   </form>
                 )}
 
