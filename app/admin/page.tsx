@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Download, FileText, Loader2, LogOut, Plus, Search, ShieldCheck, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Check, Download, FileText, Loader2, LogOut, Plus, Search, Send, ShieldCheck, StickyNote, Trash2, Upload, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatCAD } from "@/lib/utils";
 import type { DocMeta } from "@/components/dashboard/documents";
+import type { NoteMeta } from "@/components/dashboard/notes";
 
 type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[] };
 type Admins = { envAdmins: string[]; dbAdmins: { id: string; email: string }[] };
@@ -30,6 +31,11 @@ export default function AdminPage() {
   const [openDocs, setOpenDocs] = useState<string | null>(null);
   const [docsBySub, setDocsBySub] = useState<Record<string, DocMeta[]>>({});
   const [uploading, setUploading] = useState<string | null>(null);
+  // Notes par sous-compte
+  const [openNotes, setOpenNotes] = useState<string | null>(null);
+  const [notesBySub, setNotesBySub] = useState<Record<string, NoteMeta[]>>({});
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, { title: string; body: string }>>({});
+  const [sendingNote, setSendingNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.replace("/connexion");
@@ -161,6 +167,57 @@ export default function AdminPage() {
     run(`doc-${docId}`, async () => {
       const res = await authedFetch("/api/admin/documents", { method: "DELETE", body: JSON.stringify({ id: docId }) });
       await loadDocs(name);
+      return res;
+    });
+
+  // ---- Notes ----
+  const loadNotes = useCallback(
+    async (name: string) => {
+      try {
+        const res = await authedFetch(`/api/admin/notes?subaccount=${encodeURIComponent(name)}`);
+        const data = await res.json();
+        setNotesBySub((m) => ({ ...m, [name]: Array.isArray(data.notes) ? data.notes : [] }));
+      } catch {
+        setNotesBySub((m) => ({ ...m, [name]: [] }));
+      }
+    },
+    [authedFetch]
+  );
+
+  function toggleNotes(name: string) {
+    if (openNotes === name) {
+      setOpenNotes(null);
+      return;
+    }
+    setOpenNotes(name);
+    if (!notesBySub[name]) loadNotes(name);
+  }
+
+  async function sendNote(name: string) {
+    const draft = noteDrafts[name] ?? { title: "", body: "" };
+    if (!draft.body.trim()) return;
+    setSendingNote(name);
+    setError(null);
+    try {
+      const res = await authedFetch("/api/admin/notes", {
+        method: "POST",
+        body: JSON.stringify({ subaccount: name, title: draft.title, body: draft.body }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Envoi impossible.");
+      setNoteDrafts((m) => ({ ...m, [name]: { title: "", body: "" } }));
+      await loadNotes(name);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Envoi impossible.");
+    } finally {
+      setSendingNote(null);
+    }
+  }
+
+  const deleteNote = (name: string, noteId: string) =>
+    run(`note-${noteId}`, async () => {
+      const res = await authedFetch("/api/admin/notes", { method: "DELETE", body: JSON.stringify({ id: noteId }) });
+      await loadNotes(name);
       return res;
     });
 
@@ -400,6 +457,72 @@ export default function AdminPage() {
                         {(docsBySub[r.name]?.length ?? 0) === 0 && (
                           <li className="py-2 text-xs text-smoke">Aucun document déposé.</li>
                         )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Notes du sous-compte */}
+                <div className="mt-3 border-t border-line-soft pt-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleNotes(r.name)}
+                    className="inline-flex items-center gap-1.5 text-xs text-smoke hover:text-ink"
+                  >
+                    <StickyNote className="size-3.5" />
+                    Notes{notesBySub[r.name] ? ` (${notesBySub[r.name].length})` : ""}
+                  </button>
+
+                  {openNotes === r.name && (
+                    <div className="mt-3">
+                      <form onSubmit={(e) => { e.preventDefault(); sendNote(r.name); }} className="flex flex-col gap-2">
+                        <input
+                          type="text"
+                          placeholder="Titre (optionnel)"
+                          value={noteDrafts[r.name]?.title ?? ""}
+                          onChange={(e) => setNoteDrafts((m) => ({ ...m, [r.name]: { title: e.target.value, body: m[r.name]?.body ?? "" } }))}
+                          className={inputCls}
+                        />
+                        <textarea
+                          placeholder="Écrire une note au client…"
+                          rows={3}
+                          value={noteDrafts[r.name]?.body ?? ""}
+                          onChange={(e) => setNoteDrafts((m) => ({ ...m, [r.name]: { title: m[r.name]?.title ?? "", body: e.target.value } }))}
+                          className="w-full rounded-[2px] border border-line bg-white px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
+                        />
+                        <button
+                          type="submit"
+                          disabled={sendingNote === r.name}
+                          className="inline-flex h-10 w-fit items-center justify-center gap-1.5 rounded-[2px] bg-ink px-3.5 text-sm font-medium text-paper disabled:opacity-50"
+                        >
+                          {sendingNote === r.name ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Envoyer la note
+                        </button>
+                      </form>
+
+                      <ul className="mt-3 flex flex-col gap-2">
+                        {(notesBySub[r.name] ?? []).map((n) => (
+                          <li key={n.id} className="rounded-[2px] border border-line bg-paper-2/40 p-3 text-sm">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                {n.title && <p className="font-medium text-ink">{n.title}</p>}
+                                <p className="whitespace-pre-wrap text-smoke">{n.body}</p>
+                                <p className="mt-1 text-[0.7rem] uppercase tracking-wide text-smoke/60">
+                                  {new Date(n.createdAt).toLocaleString("fr-CA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => deleteNote(r.name, n.id)}
+                                disabled={busy === `note-${n.id}`}
+                                className="shrink-0 text-smoke hover:text-red-600 disabled:opacity-50"
+                                aria-label="Supprimer"
+                              >
+                                {busy === `note-${n.id}` ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                        {(notesBySub[r.name]?.length ?? 0) === 0 && <li className="text-xs text-smoke">Aucune note.</li>}
                       </ul>
                     </div>
                   )}

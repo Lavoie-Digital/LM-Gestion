@@ -15,9 +15,10 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  StickyNote,
   X,
 } from "lucide-react";
-import { CLIENT, LIVE_TICKER } from "@/lib/data";
+import { LIVE_TICKER } from "@/lib/data";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { easeLux } from "@/lib/motion";
@@ -29,6 +30,7 @@ const NAV = [
   { label: "Analyse IA", href: "#analyse-ia", icon: Sparkles },
   { label: "Activité", href: "#activite", icon: Activity },
   { label: "Documents", href: "#documents", icon: FileText },
+  { label: "Notes", href: "#notes", icon: StickyNote },
   { label: "Paramètres", href: "#", icon: Settings },
 ];
 
@@ -64,12 +66,16 @@ function NavList({
   );
 }
 
+export type Identity = { name: string; secondary?: string; initials: string };
+
 function SidebarInner({
   active,
   onSelect,
+  identity,
 }: {
   active: string;
   onSelect: (href: string) => void;
+  identity: Identity;
 }) {
   const router = useRouter();
   const { signOut, isAdmin } = useAuth();
@@ -106,18 +112,12 @@ function SidebarInner({
         <div className="rounded-[4px] border border-line-dark bg-ink-2/60 p-3.5">
           <div className="flex items-center gap-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-paper font-[family-name:var(--font-jetbrains)] text-xs text-ink">
-              GV
+              {identity.initials}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-paper">{CLIENT.name}</p>
-              <p className="truncate text-xs text-ash">Client depuis {CLIENT.since}</p>
+              <p className="truncate text-sm font-medium text-paper">{identity.name}</p>
+              {identity.secondary && <p className="truncate text-xs text-ash">{identity.secondary}</p>}
             </div>
-          </div>
-          <div className="mt-3 border-t border-line-dark pt-3 text-xs text-ash">
-            <p>
-              Gestionnaire ·{" "}
-              <span className="text-paper/80">{CLIENT.advisor}</span>
-            </p>
           </div>
         </div>
 
@@ -254,14 +254,18 @@ function LiveTicker() {
   );
 }
 
+const DEFAULT_IDENTITY: Identity = { name: "Espace client", secondary: "", initials: "·" };
+
 export function DashboardShell({
   children,
   live = false,
   notifications = [],
+  identity = DEFAULT_IDENTITY,
 }: {
   children: ReactNode;
   live?: boolean;
   notifications?: NotifItem[];
+  identity?: Identity;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [active, setActive] = useState("#apercu");
@@ -282,7 +286,7 @@ export function DashboardShell({
     <div className="min-h-[100svh] bg-paper">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[270px] overflow-hidden lg:block">
-        <SidebarInner active={active} onSelect={select} />
+        <SidebarInner active={active} onSelect={select} identity={identity} />
       </aside>
 
       {/* Mobile drawer */}
@@ -311,7 +315,7 @@ export function DashboardShell({
               >
                 <X className="size-5" />
               </button>
-              <SidebarInner active={active} onSelect={select} />
+              <SidebarInner active={active} onSelect={select} identity={identity} />
             </motion.aside>
           </>
         )}
@@ -351,8 +355,8 @@ export function DashboardShell({
                     </span>
                   )}
                 </div>
-                <p className="mt-1 hidden text-xs text-smoke sm:block">
-                  {CLIENT.portfolioName} · 16 juin 2026
+                <p className="mt-1 hidden truncate text-xs text-smoke sm:block">
+                  {identity.name}
                 </p>
               </div>
             </div>
@@ -361,7 +365,7 @@ export function DashboardShell({
               <LiveTicker />
               <NotificationBell notifications={notifications} />
               <span className="flex size-9 items-center justify-center rounded-full bg-ink font-[family-name:var(--font-jetbrains)] text-xs text-paper">
-                GV
+                {identity.initials}
               </span>
             </div>
           </div>
