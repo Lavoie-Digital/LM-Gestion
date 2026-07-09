@@ -344,7 +344,7 @@ export function DashboardShell({
                       title="Données réelles PlexFlow, en direct."
                       className="hidden shrink-0 items-center gap-1.5 rounded-full border border-line bg-paper-2 px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-[0.14em] text-ink sm:inline-flex"
                     >
-                      <span className="live-dot inline-block size-1.5 rounded-full bg-ink" /> PlexFlow
+                      <span className="live-dot inline-block size-1.5 rounded-full bg-ink" /> En ligne
                     </span>
                   ) : (
                     <span

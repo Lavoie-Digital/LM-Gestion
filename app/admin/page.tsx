@@ -25,6 +25,7 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [accessFilter, setAccessFilter] = useState<"all" | "with" | "without">("all");
   const [emailInputs, setEmailInputs] = useState<Record<string, string>>({});
   const [newAdmin, setNewAdmin] = useState("");
   // Documents par sous-compte
@@ -223,9 +224,13 @@ export default function AdminPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.name.toLowerCase().includes(q) || r.emails.some((e) => e.toLowerCase().includes(q)));
-  }, [rows, query]);
+    return rows.filter((r) => {
+      if (accessFilter === "with" && r.emails.length === 0) return false;
+      if (accessFilter === "without" && r.emails.length > 0) return false;
+      if (!q) return true;
+      return r.name.toLowerCase().includes(q) || r.emails.some((e) => e.toLowerCase().includes(q));
+    });
+  }, [rows, query, accessFilter]);
 
   const linkedCount = rows.filter((r) => r.emails.length > 0).length;
 
@@ -317,10 +322,28 @@ export default function AdminPage() {
         </section>
 
         {/* ---- Sous-comptes clients ---- */}
-        <div className="mt-10 flex flex-wrap items-center gap-4 text-sm text-smoke">
-          <span><span className="font-medium text-ink tabular">{rows.length}</span> sous-comptes</span>
-          <span><span className="font-medium text-ink tabular">{linkedCount}</span> avec accès</span>
-          <span><span className="font-medium text-ink tabular">{rows.length - linkedCount}</span> sans accès</span>
+        <div className="mt-10 flex flex-wrap items-center gap-2 text-sm">
+          {(
+            [
+              { key: "all" as const, count: rows.length, label: "sous-comptes" },
+              { key: "with" as const, count: linkedCount, label: "avec accès" },
+              { key: "without" as const, count: rows.length - linkedCount, label: "sans accès" },
+            ]
+          ).map((s) => {
+            const active = accessFilter === s.key;
+            return (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => setAccessFilter(active && s.key !== "all" ? "all" : s.key)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 transition-colors ${
+                  active ? "border-ink bg-ink text-paper" : "border-line bg-white text-smoke hover:border-ink hover:text-ink"
+                }`}
+              >
+                <span className="font-medium tabular">{s.count}</span> {s.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="relative mt-4">
