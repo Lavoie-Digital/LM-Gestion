@@ -61,19 +61,19 @@ export async function isOwnerEmail(email: string): Promise<boolean> {
   return !snap.empty;
 }
 
-/** Associe (ou met à jour) un courriel à un sous-compte PlexFlow. Idempotent par sous-compte. */
+/** Ajoute un courriel à un sous-compte PlexFlow (ADDITIF : plusieurs courriels
+ *  possibles par sous-compte). Ne crée pas de doublon (couple sous-compte+courriel). */
 export async function linkSubaccount(subaccount: string, email: string): Promise<void> {
   const db = adminDb();
   const sa = subaccount.trim();
   const mail = email.trim().toLowerCase();
-  const existing = await db.collection("owners").where("plexflowSubaccount", "==", sa).limit(1).get();
-  if (!existing.empty) {
-    await existing.docs[0].ref.set(
-      { email: mail, name: sa, plexflowSubaccount: sa, updatedAt: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
-    return;
-  }
+  const dup = await db
+    .collection("owners")
+    .where("plexflowSubaccount", "==", sa)
+    .where("email", "==", mail)
+    .limit(1)
+    .get();
+  if (!dup.empty) return;
   await db.collection("owners").add({
     name: sa,
     email: mail,
@@ -82,10 +82,14 @@ export async function linkSubaccount(subaccount: string, email: string): Promise
   });
 }
 
-/** Retire l'association d'un sous-compte (supprime le profil). */
-export async function unlinkSubaccount(subaccount: string): Promise<void> {
+/** Retire un courriel précis d'un sous-compte. */
+export async function unlinkEmail(subaccount: string, email: string): Promise<void> {
   const db = adminDb();
-  const snap = await db.collection("owners").where("plexflowSubaccount", "==", subaccount.trim()).get();
+  const snap = await db
+    .collection("owners")
+    .where("plexflowSubaccount", "==", subaccount.trim())
+    .where("email", "==", email.trim().toLowerCase())
+    .get();
   const batch = db.batch();
   snap.docs.forEach((d) => batch.delete(d.ref));
   await batch.commit();

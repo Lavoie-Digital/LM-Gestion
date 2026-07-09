@@ -17,25 +17,28 @@ export async function GET(request: Request) {
 
   try {
     const [subs, owners] = await Promise.all([listSubaccountsDetailed(), listOwners()]);
-    const byName = new Map(owners.filter((o) => o.plexflowSubaccount).map((o) => [o.plexflowSubaccount as string, o]));
 
-    // Sous-comptes PlexFlow (avec statut d'association).
-    const rows = subs.map((s) => {
-      const owner = byName.get(s.name);
-      return {
-        name: s.name,
-        unitCount: s.unitCount,
-        monthlyRevenueCents: s.monthlyRevenueCents,
-        email: owner?.email ?? null,
-        ownerId: owner?.id ?? null,
-      };
-    });
+    // Regroupe les courriels associés par sous-compte (plusieurs possibles).
+    const emailsBySub = new Map<string, string[]>();
+    for (const o of owners) {
+      if (!o.plexflowSubaccount || !o.email) continue;
+      const arr = emailsBySub.get(o.plexflowSubaccount) ?? [];
+      if (!arr.includes(o.email)) arr.push(o.email);
+      emailsBySub.set(o.plexflowSubaccount, arr);
+    }
 
-    // Profils orphelins (courriel lié à un sous-compte absent du parc actuel).
+    const rows = subs.map((s) => ({
+      name: s.name,
+      unitCount: s.unitCount,
+      monthlyRevenueCents: s.monthlyRevenueCents,
+      emails: (emailsBySub.get(s.name) ?? []).sort(),
+    }));
+
+    // Sous-comptes liés mais absents du parc actuel (courriels orphelins).
     const known = new Set(subs.map((s) => s.name));
-    const orphans = owners
-      .filter((o) => o.plexflowSubaccount && !known.has(o.plexflowSubaccount))
-      .map((o) => ({ name: o.plexflowSubaccount as string, unitCount: 0, monthlyRevenueCents: 0, email: o.email, ownerId: o.id }));
+    const orphans = [...emailsBySub.entries()]
+      .filter(([name]) => !known.has(name))
+      .map(([name, emails]) => ({ name, unitCount: 0, monthlyRevenueCents: 0, emails: emails.sort() }));
 
     return Response.json({ subaccounts: [...rows, ...orphans] });
   } catch (err) {

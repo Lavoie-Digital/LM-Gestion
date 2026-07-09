@@ -4,14 +4,23 @@
  * ------------------------------------------------------------------ */
 
 import { adminAuth, authConfigured } from "./firebase-admin";
+import { isDbAdmin } from "./admins";
 
 export const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "xavier@lavoiedigital.ca")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
-export function isAdminEmail(email?: string | null): boolean {
+/** Admin « permanent » (liste env). */
+export function isEnvAdmin(email?: string | null): boolean {
   return Boolean(email && ADMIN_EMAILS.includes(email.toLowerCase()));
+}
+
+/** Admin = liste env OU admins ajoutés en base (Firestore `admins`). */
+export async function resolveIsAdmin(email?: string | null): Promise<boolean> {
+  if (!email) return false;
+  if (isEnvAdmin(email)) return true;
+  return isDbAdmin(email).catch(() => false);
 }
 
 export type Identity = { email: string; isAdmin: boolean };
@@ -26,7 +35,7 @@ export async function verifyBearer(request: Request): Promise<Identity | null> {
     const decoded = await adminAuth().verifyIdToken(token);
     const email = decoded.email?.toLowerCase();
     if (!email) return null;
-    return { email, isAdmin: isAdminEmail(email) };
+    return { email, isAdmin: await resolveIsAdmin(email) };
   } catch {
     return null;
   }
