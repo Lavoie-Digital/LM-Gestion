@@ -101,14 +101,14 @@ function DemoView() {
   return (
     <>
       <section id="apercu" className="scroll-mt-24">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {DEMO_KPIS.map((k) => (
             <KpiCard key={k.label} {...k} />
           ))}
         </div>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-[4px] border border-line bg-white p-6 text-ink lg:col-span-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -168,7 +168,7 @@ function DemoView() {
 
       <AiAnalysis />
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <PropertiesTable />
         </div>
@@ -297,14 +297,14 @@ function LiveView({
       )}
 
       <section id="apercu" className="scroll-mt-24">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {kpis.map((kpi) => (
             <KpiCard key={kpi.label} {...kpi} />
           ))}
         </div>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DocumentsSection docs={docs} />
         <NotesSection notes={notes} />
       </div>
@@ -358,7 +358,7 @@ function LiveView({
 
       <AiAnalysis />
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <PropertiesTable
             rows={rows}
