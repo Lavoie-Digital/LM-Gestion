@@ -7,20 +7,24 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminConfigured, adminDb } from "./firebase-admin";
 
+export type NoteFrom = "manager" | "client";
+
 export type NoteMeta = {
   id: string;
   subaccount: string;
   title: string;
   body: string;
+  from: NoteFrom;
+  author?: string;
   createdAt: string; // ISO
-  createdBy?: string;
 };
 
 export async function addNote(input: {
   subaccount: string;
   title: string;
   body: string;
-  createdBy?: string;
+  from: NoteFrom;
+  author?: string;
 }): Promise<NoteMeta> {
   const db = adminDb();
   const ref = db.collection("notes").doc();
@@ -29,11 +33,12 @@ export async function addNote(input: {
     subaccount: input.subaccount.trim(),
     title: input.title.trim(),
     body: input.body.trim(),
+    from: input.from,
+    author: input.author ?? null,
     createdAt,
-    createdBy: input.createdBy ?? null,
   };
   await ref.set({ ...note, serverCreatedAt: FieldValue.serverTimestamp() });
-  return { id: ref.id, ...note, createdBy: input.createdBy };
+  return { id: ref.id, subaccount: note.subaccount, title: note.title, body: note.body, from: note.from, author: input.author, createdAt };
 }
 
 export async function listNotes(subaccounts: string[] | null): Promise<NoteMeta[]> {
@@ -55,8 +60,9 @@ export async function listNotes(subaccounts: string[] | null): Promise<NoteMeta[
         subaccount: String(x.subaccount ?? ""),
         title: String(x.title ?? ""),
         body: String(x.body ?? ""),
+        from: x.from === "client" ? "client" : "manager",
+        author: typeof x.author === "string" ? x.author : undefined,
         createdAt: String(x.createdAt ?? ""),
-        createdBy: x.createdBy ?? undefined,
       } satisfies NoteMeta;
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));

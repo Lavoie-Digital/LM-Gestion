@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   if (!text) return Response.json({ error: "La note est vide." }, { status: 400 });
 
   try {
-    const note = await addNote({ subaccount, title, body: text, createdBy: id.email });
+    const note = await addNote({ subaccount, title, body: text, from: "manager", author: id.email });
 
     const emails = await emailsForSubaccount(subaccount).catch(() => []);
     const preview = text.length > 400 ? `${text.slice(0, 400)}…` : text;

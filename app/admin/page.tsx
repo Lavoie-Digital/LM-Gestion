@@ -250,6 +250,9 @@ export default function AdminPage() {
             <ArrowLeft className="size-4" /> Tableau de bord
           </Link>
           <span className="kicker text-smoke">Zone admin</span>
+          <Link href="/tableau-de-bord/demo" className="text-sm text-smoke underline-offset-2 hover:text-ink hover:underline">
+            Tableau démo
+          </Link>
         </div>
         <button type="button" onClick={() => signOut()} className="inline-flex items-center gap-2 text-sm text-smoke hover:text-ink">
           <LogOut className="size-4" /> Déconnexion
@@ -524,11 +527,16 @@ export default function AdminPage() {
 
                       <ul className="mt-3 flex flex-col gap-2">
                         {(notesBySub[r.name] ?? []).map((n) => (
-                          <li key={n.id} className="rounded-[2px] border border-line bg-paper-2/40 p-3 text-sm">
+                          <li key={n.id} className={`rounded-[2px] border p-3 text-sm ${n.from === "client" ? "border-ink/40 bg-white" : "border-line bg-paper-2/40"}`}>
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
+                                {n.from === "client" && (
+                                  <p className="mb-1 inline-flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-paper">
+                                    Du client{n.author ? ` · ${n.author}` : ""}
+                                  </p>
+                                )}
                                 {n.title && <p className="font-medium text-ink">{n.title}</p>}
-                                <p className="whitespace-pre-wrap text-smoke">{n.body}</p>
+                                <p className="whitespace-pre-wrap break-words text-smoke">{n.body}</p>
                                 <p className="mt-1 text-[0.7rem] uppercase tracking-wide text-smoke/60">
                                   {new Date(n.createdAt).toLocaleString("fr-CA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                                 </p>
