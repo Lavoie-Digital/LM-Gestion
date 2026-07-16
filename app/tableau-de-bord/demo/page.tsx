@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { DashboardShell } from "@/components/dashboard/shell";
-import { DemoView } from "@/components/dashboard/demo-view";
+import { DemoView, DEMO_NOTIFICATIONS } from "@/components/dashboard/demo-view";
 
 /* Tableau de bord DÉMO — réservé aux admins, pour présentation publique.
    Données fictives, aucune donnée réelle. */
@@ -28,7 +28,7 @@ export default function DemoDashboardPage() {
   }
 
   return (
-    <DashboardShell live={false} identity={DEMO_IDENTITY}>
+    <DashboardShell live={false} identity={DEMO_IDENTITY} notifications={DEMO_NOTIFICATIONS}>
       <div className="space-y-6 md:space-y-8">
         <div className="flex items-center gap-2.5 rounded-[3px] border border-line bg-paper-2/60 px-4 py-2.5 text-xs text-smoke">
           <span className="size-1.5 shrink-0 rounded-full bg-ink/50" />
