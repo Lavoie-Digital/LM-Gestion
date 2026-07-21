@@ -6,6 +6,7 @@
 import { verifyBearer } from "@/lib/access";
 import { listSubaccountsDetailed } from "@/lib/plexflow-store";
 import { listOwners } from "@/lib/owners-admin";
+import { unreadCountsBySubaccount } from "@/lib/notes";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,7 +17,11 @@ export async function GET(request: Request) {
   if (!id.isAdmin) return Response.json({ error: "Réservé aux admins." }, { status: 403 });
 
   try {
-    const [subs, owners] = await Promise.all([listSubaccountsDetailed(), listOwners()]);
+    const [subs, owners, unread] = await Promise.all([
+      listSubaccountsDetailed(),
+      listOwners(),
+      unreadCountsBySubaccount().catch(() => ({} as Record<string, number>)),
+    ]);
 
     // Regroupe les courriels associés par sous-compte (plusieurs possibles).
     const emailsBySub = new Map<string, string[]>();
@@ -32,13 +37,14 @@ export async function GET(request: Request) {
       unitCount: s.unitCount,
       monthlyRevenueCents: s.monthlyRevenueCents,
       emails: (emailsBySub.get(s.name) ?? []).sort(),
+      unreadNotes: unread[s.name] ?? 0,
     }));
 
     // Sous-comptes liés mais absents du parc actuel (courriels orphelins).
     const known = new Set(subs.map((s) => s.name));
     const orphans = [...emailsBySub.entries()]
       .filter(([name]) => !known.has(name))
-      .map(([name, emails]) => ({ name, unitCount: 0, monthlyRevenueCents: 0, emails: emails.sort() }));
+      .map(([name, emails]) => ({ name, unitCount: 0, monthlyRevenueCents: 0, emails: emails.sort(), unreadNotes: unread[name] ?? 0 }));
 
     return Response.json({ subaccounts: [...rows, ...orphans] });
   } catch (err) {

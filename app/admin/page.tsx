@@ -3,27 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Download, FileText, Folder, FolderPlus, Loader2, LogOut, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Check, FolderOpen, Loader2, LogOut, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatCAD } from "@/lib/utils";
-import type { DocMeta } from "@/components/dashboard/documents";
+import { DocumentExplorer } from "@/components/admin/document-explorer";
 import type { NoteMeta } from "@/components/dashboard/notes";
 
-type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[] };
+type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[]; unreadNotes?: number };
 type Admins = { envAdmins: string[]; dbAdmins: { id: string; email: string }[] };
 
 const inputCls =
   "h-10 w-full rounded-[2px] border border-line bg-white px-3 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink";
-
-/** Regroupe les documents par dossier — racine en premier. */
-function groupDocs(docs: DocMeta[]): [string, DocMeta[]][] {
-  const map = new Map<string, DocMeta[]>();
-  for (const d of docs) {
-    const f = d.folder ?? "";
-    (map.get(f) ?? map.set(f, []).get(f)!).push(d);
-  }
-  return [...map.entries()].sort((a, b) => (a[0] === "" ? -1 : b[0] === "" ? 1 : a[0].localeCompare(b[0])));
-}
 
 export default function AdminPage() {
   const router = useRouter();
@@ -36,15 +26,11 @@ export default function AdminPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [accessFilter, setAccessFilter] = useState<"all" | "with" | "without">("all");
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [emailInputs, setEmailInputs] = useState<Record<string, string>>({});
   const [newAdmin, setNewAdmin] = useState("");
-  // Documents par sous-compte
-  const [openDocs, setOpenDocs] = useState<string | null>(null);
-  const [docsBySub, setDocsBySub] = useState<Record<string, DocMeta[]>>({});
-  const [foldersBySub, setFoldersBySub] = useState<Record<string, string[]>>({});
-  const [uploadFolder, setUploadFolder] = useState<Record<string, string>>({});
-  const [newFolder, setNewFolder] = useState<Record<string, string>>({});
-  const [uploading, setUploading] = useState<string | null>(null);
+  // Explorateur de documents (façon fichiers) ouvert pour ce sous-compte.
+  const [explorerSub, setExplorerSub] = useState<string | null>(null);
   // Notes par sous-compte
   const [openNotes, setOpenNotes] = useState<string | null>(null);
   const [notesBySub, setNotesBySub] = useState<Record<string, NoteMeta[]>>({});
@@ -131,75 +117,6 @@ export default function AdminPage() {
       authedFetch("/api/admin/admins", { method: "DELETE", body: JSON.stringify({ email }) })
     );
 
-  // ---- Documents ----
-  const loadDocs = useCallback(
-    async (name: string) => {
-      try {
-        const res = await authedFetch(`/api/admin/documents?subaccount=${encodeURIComponent(name)}`);
-        const data = await res.json();
-        setDocsBySub((m) => ({ ...m, [name]: Array.isArray(data.documents) ? data.documents : [] }));
-        setFoldersBySub((m) => ({ ...m, [name]: Array.isArray(data.folders) ? data.folders : [] }));
-      } catch {
-        setDocsBySub((m) => ({ ...m, [name]: [] }));
-      }
-    },
-    [authedFetch]
-  );
-
-  async function addFolder(name: string) {
-    const folder = (newFolder[name] ?? "").trim();
-    if (!folder) return;
-    await authedFetch("/api/admin/folders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subaccount: name, name: folder }),
-    });
-    setNewFolder((m) => ({ ...m, [name]: "" }));
-    setUploadFolder((m) => ({ ...m, [name]: folder }));
-    await loadDocs(name);
-  }
-
-  function toggleDocs(name: string) {
-    if (openDocs === name) {
-      setOpenDocs(null);
-      return;
-    }
-    setOpenDocs(name);
-    if (!docsBySub[name]) loadDocs(name);
-  }
-
-  async function uploadDoc(name: string, file: File) {
-    setUploading(name);
-    setError(null);
-    try {
-      const token = await user!.getIdToken();
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("subaccount", name);
-      const folder = uploadFolder[name] ?? "";
-      if (folder) fd.append("folder", folder);
-      const res = await fetch("/api/admin/documents", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` }, // pas de Content-Type : le navigateur gère le multipart
-        body: fd,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Dépôt impossible.");
-      await loadDocs(name);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Dépôt impossible.");
-    } finally {
-      setUploading(null);
-    }
-  }
-
-  const deleteDoc = (name: string, docId: string) =>
-    run(`doc-${docId}`, async () => {
-      const res = await authedFetch("/api/admin/documents", { method: "DELETE", body: JSON.stringify({ id: docId }) });
-      await loadDocs(name);
-      return res;
-    });
-
   // ---- Notes ----
   const loadNotes = useCallback(
     async (name: string) => {
@@ -220,7 +137,9 @@ export default function AdminPage() {
       return;
     }
     setOpenNotes(name);
-    if (!notesBySub[name]) loadNotes(name);
+    loadNotes(name); // le GET marque les notes du client comme lues côté serveur
+    // Efface le badge « non lu » localement.
+    setRows((rs) => rs.map((r) => (r.name === name ? { ...r, unreadNotes: 0 } : r)));
   }
 
   async function sendNote(name: string) {
@@ -254,14 +173,16 @@ export default function AdminPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
+      if (unreadOnly && !((r.unreadNotes ?? 0) > 0)) return false;
       if (accessFilter === "with" && r.emails.length === 0) return false;
       if (accessFilter === "without" && r.emails.length > 0) return false;
       if (!q) return true;
       return r.name.toLowerCase().includes(q) || r.emails.some((e) => e.toLowerCase().includes(q));
     });
-  }, [rows, query, accessFilter]);
+  }, [rows, query, accessFilter, unreadOnly]);
 
   const linkedCount = rows.filter((r) => r.emails.length > 0).length;
+  const totalUnread = rows.reduce((s, r) => s + (r.unreadNotes ?? 0), 0);
 
   if (loading || !user || !isAdmin) {
     return (
@@ -379,6 +300,22 @@ export default function AdminPage() {
               </button>
             );
           })}
+
+          {/* Filtre : notes clients non lues */}
+          <button
+            type="button"
+            onClick={() => setUnreadOnly((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 transition-colors ${
+              unreadOnly
+                ? "border-ink bg-ink text-paper"
+                : totalUnread > 0
+                  ? "border-ink bg-white text-ink hover:bg-paper-2"
+                  : "border-line bg-white text-smoke hover:border-ink hover:text-ink"
+            }`}
+          >
+            {totalUnread > 0 && <span className="inline-block size-1.5 rounded-full bg-current" />}
+            <span className="font-medium tabular">{totalUnread}</span> note{totalUnread > 1 ? "s" : ""} non lue{totalUnread > 1 ? "s" : ""}
+          </button>
         </div>
 
         <div className="relative mt-4">
@@ -458,106 +395,15 @@ export default function AdminPage() {
                   </button>
                 </form>
 
-                {/* Documents du sous-compte */}
+                {/* Documents du sous-compte — ouvre l'explorateur */}
                 <div className="mt-3 border-t border-line-soft pt-3">
                   <button
                     type="button"
-                    onClick={() => toggleDocs(r.name)}
-                    className="inline-flex items-center gap-1.5 text-xs text-smoke hover:text-ink"
+                    onClick={() => setExplorerSub(r.name)}
+                    className="inline-flex items-center gap-1.5 rounded-[2px] border border-line px-3 py-1.5 text-xs text-ink hover:bg-paper-2"
                   >
-                    <FileText className="size-3.5" />
-                    Documents{docsBySub[r.name] ? ` (${docsBySub[r.name].length})` : ""}
+                    <FolderOpen className="size-4" /> Ouvrir les documents
                   </button>
-
-                  {openDocs === r.name && (
-                    <div className="mt-3">
-                      {/* Dossier cible + création */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <select
-                          value={uploadFolder[r.name] ?? ""}
-                          onChange={(e) => setUploadFolder((m) => ({ ...m, [r.name]: e.target.value }))}
-                          className="h-9 rounded-[2px] border border-line bg-white px-2 text-xs text-ink outline-none focus:border-ink"
-                        >
-                          <option value="">Racine</option>
-                          {(foldersBySub[r.name] ?? []).map((f) => (
-                            <option key={f} value={f}>{f}</option>
-                          ))}
-                        </select>
-                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-[2px] border border-line px-3 py-2 text-sm text-ink hover:bg-paper-2">
-                          {uploading === r.name ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                          Déposer ici
-                          <input
-                            type="file"
-                            className="hidden"
-                            disabled={uploading === r.name}
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) uploadDoc(r.name, f);
-                              e.target.value = "";
-                            }}
-                          />
-                        </label>
-                        <span className="mx-1 h-5 w-px bg-line" />
-                        <input
-                          className="h-9 w-40 rounded-[2px] border border-line bg-white px-2 text-xs text-ink outline-none focus:border-ink"
-                          placeholder="Nouveau dossier (ex. Baux)"
-                          value={newFolder[r.name] ?? ""}
-                          onChange={(e) => setNewFolder((m) => ({ ...m, [r.name]: e.target.value }))}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => addFolder(r.name)}
-                          disabled={!(newFolder[r.name] ?? "").trim()}
-                          className="inline-flex h-9 items-center gap-1.5 rounded-[2px] border border-line px-2.5 text-xs text-ink hover:bg-paper-2 disabled:opacity-50"
-                        >
-                          <FolderPlus className="size-3.5" /> Créer
-                        </button>
-                      </div>
-
-                      {/* Liste groupée par dossier */}
-                      <div className="mt-3 flex flex-col gap-3">
-                        {groupDocs(docsBySub[r.name] ?? []).map(([folder, items]) => (
-                          <div key={folder || "__root"}>
-                            {folder && (
-                              <p className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-smoke">
-                                <Folder className="size-3.5" /> {folder}
-                              </p>
-                            )}
-                            <ul className="flex flex-col divide-y divide-line-soft">
-                              {items.map((d) => (
-                                <li key={d.id} className="flex items-center gap-3 py-2 text-sm">
-                                  <FileText className="size-4 shrink-0 text-smoke" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-ink">{d.name}</p>
-                                    <p className="text-xs text-smoke">
-                                      {new Date(d.uploadedAt).toLocaleString("fr-CA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                                    </p>
-                                  </div>
-                                  {d.url && (
-                                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-smoke hover:text-ink" aria-label="Télécharger">
-                                      <Download className="size-4" />
-                                    </a>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteDoc(r.name, d.id)}
-                                    disabled={busy === `doc-${d.id}`}
-                                    className="text-smoke hover:text-red-600 disabled:opacity-50"
-                                    aria-label="Supprimer"
-                                  >
-                                    {busy === `doc-${d.id}` ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                        {(docsBySub[r.name]?.length ?? 0) === 0 && (
-                          <p className="py-2 text-xs text-smoke">Aucun document déposé.</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Notes du sous-compte */}
@@ -569,6 +415,11 @@ export default function AdminPage() {
                   >
                     <StickyNote className="size-3.5" />
                     Notes{notesBySub[r.name] ? ` (${notesBySub[r.name].length})` : ""}
+                    {(r.unreadNotes ?? 0) > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-ink px-1.5 py-0.5 text-[0.6rem] font-medium text-paper">
+                        {r.unreadNotes} non lue{(r.unreadNotes ?? 0) > 1 ? "s" : ""}
+                      </span>
+                    )}
                   </button>
 
                   {openNotes === r.name && (
@@ -642,6 +493,14 @@ export default function AdminPage() {
           </ul>
         )}
       </div>
+
+      {explorerSub && (
+        <DocumentExplorer
+          subaccount={explorerSub}
+          getToken={() => user!.getIdToken()}
+          onClose={() => setExplorerSub(null)}
+        />
+      )}
     </main>
   );
 }

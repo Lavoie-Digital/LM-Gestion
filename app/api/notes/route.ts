@@ -55,9 +55,13 @@ export async function POST(request: Request) {
   try {
     const note = await addNote({ subaccount, title, body: text, from: "client", author: id.email });
 
-    // Notifie les gestionnaires (admins env + base).
+    // Notifie les GESTIONNAIRES seulement (admins ajoutés en base + boîte de
+    // contact). Les admins « env » (le dev) sont EXCLUS des notifications.
     const dbAdmins = await listDbAdmins().catch(() => []);
-    const recipients = [...new Set([...ADMIN_EMAILS, ...dbAdmins.map((a) => a.email)])];
+    const inbox = process.env.CONTACT_INBOX_EMAIL?.trim().toLowerCase();
+    const recipients = [...new Set([...dbAdmins.map((a) => a.email), ...(inbox ? [inbox] : [])])].filter(
+      (e) => !ADMIN_EMAILS.includes(e)
+    );
     const preview = text.length > 400 ? `${text.slice(0, 400)}…` : text;
     const html = brandedBody({
       heading: "Nouveau message d'un client",

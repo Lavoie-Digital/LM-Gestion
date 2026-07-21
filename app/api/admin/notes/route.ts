@@ -6,7 +6,7 @@
  * ------------------------------------------------------------------ */
 
 import { verifyBearer } from "@/lib/access";
-import { addNote, deleteNote, listNotes } from "@/lib/notes";
+import { addNote, deleteNote, listNotes, markNotesRead } from "@/lib/notes";
 import { emailsForSubaccount } from "@/lib/owners-admin";
 import { brandedBody, escapeHtml, sendBrandedEmail } from "@/lib/email";
 
@@ -22,7 +22,10 @@ export async function GET(request: Request) {
   const subaccount = new URL(request.url).searchParams.get("subaccount")?.trim() || "";
   if (!subaccount) return Response.json({ error: "Sous-compte manquant." }, { status: 400 });
   try {
-    return Response.json({ notes: await listNotes([subaccount]) });
+    const notes = await listNotes([subaccount]);
+    // Ouvrir les notes d'un client = les marquer comme lues (côté gestionnaire).
+    await markNotesRead(subaccount).catch(() => {});
+    return Response.json({ notes });
   } catch (err) {
     return Response.json({ error: (err as Error).message }, { status: 500 });
   }
