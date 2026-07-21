@@ -15,6 +15,7 @@ export type DocumentMeta = {
   id: string;
   subaccount: string;
   name: string;
+  folder: string; // "" = racine
   contentType: string;
   size: number;
   uploadedAt: string; // ISO
@@ -34,12 +35,14 @@ export async function uploadDocument(input: {
   filename: string;
   contentType: string;
   buffer: Buffer;
+  folder?: string;
   uploadedBy?: string;
 }): Promise<DocumentMeta> {
   const db = adminDb();
   const ref = db.collection("documents").doc();
   const name = safeName(input.filename);
   const storagePath = `documents/${ref.id}/${name}`;
+  const folder = (input.folder ?? "").trim();
 
   await adminBucket().file(storagePath).save(input.buffer, {
     resumable: false,
@@ -51,6 +54,7 @@ export async function uploadDocument(input: {
   await ref.set({
     subaccount: input.subaccount.trim(),
     name: input.filename,
+    folder,
     storagePath,
     contentType: input.contentType || "application/octet-stream",
     size: input.buffer.length,
@@ -63,11 +67,44 @@ export async function uploadDocument(input: {
     id: ref.id,
     subaccount: input.subaccount.trim(),
     name: input.filename,
+    folder,
     contentType: input.contentType || "application/octet-stream",
     size: input.buffer.length,
     uploadedAt,
     uploadedBy: input.uploadedBy,
   };
+}
+
+/* ---- Dossiers (arborescence simple par sous-compte) ---- */
+export async function listFolders(subaccount: string): Promise<string[]> {
+  if (!adminConfigured()) return [];
+  const snap = await adminDb().collection("doc_folders").where("subaccount", "==", subaccount.trim()).get();
+  return snap.docs.map((d) => String(d.get("name") ?? "")).filter(Boolean).sort();
+}
+
+export async function createFolder(subaccount: string, name: string): Promise<void> {
+  const db = adminDb();
+  const sa = subaccount.trim();
+  const n = name.trim().slice(0, 60);
+  if (!n) return;
+  const dup = await db.collection("doc_folders").where("subaccount", "==", sa).where("name", "==", n).limit(1).get();
+  if (!dup.empty) return;
+  await db.collection("doc_folders").add({ subaccount: sa, name: n, createdAt: FieldValue.serverTimestamp() });
+}
+
+export async function deleteFolder(subaccount: string, name: string): Promise<void> {
+  const db = adminDb();
+  const sa = subaccount.trim();
+  const n = name.trim();
+  const snap = await db.collection("doc_folders").where("subaccount", "==", sa).where("name", "==", n).get();
+  const batch = db.batch();
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+  // Les documents du dossier retournent à la racine.
+  const docs = await db.collection("documents").where("subaccount", "==", sa).where("folder", "==", n).get();
+  const b2 = db.batch();
+  docs.docs.forEach((d) => b2.update(d.ref, { folder: "" }));
+  await b2.commit();
 }
 
 /** Liste les documents pour un périmètre. null = tous ; [] = aucun. Avec URL signées. */
@@ -99,6 +136,7 @@ export async function listDocuments(subaccounts: string[] | null): Promise<Docum
         id: d.id,
         subaccount: String(x.subaccount ?? ""),
         name: String(x.name ?? "document"),
+        folder: String(x.folder ?? ""),
         contentType: String(x.contentType ?? "application/octet-stream"),
         size: typeof x.size === "number" ? x.size : 0,
         uploadedAt: String(x.uploadedAt ?? ""),

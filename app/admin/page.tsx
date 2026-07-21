@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Download, FileText, Loader2, LogOut, Plus, Search, Send, ShieldCheck, StickyNote, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Check, Download, FileText, Folder, FolderPlus, Loader2, LogOut, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, Upload, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatCAD } from "@/lib/utils";
 import type { DocMeta } from "@/components/dashboard/documents";
@@ -14,6 +14,16 @@ type Admins = { envAdmins: string[]; dbAdmins: { id: string; email: string }[] }
 
 const inputCls =
   "h-10 w-full rounded-[2px] border border-line bg-white px-3 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink";
+
+/** Regroupe les documents par dossier — racine en premier. */
+function groupDocs(docs: DocMeta[]): [string, DocMeta[]][] {
+  const map = new Map<string, DocMeta[]>();
+  for (const d of docs) {
+    const f = d.folder ?? "";
+    (map.get(f) ?? map.set(f, []).get(f)!).push(d);
+  }
+  return [...map.entries()].sort((a, b) => (a[0] === "" ? -1 : b[0] === "" ? 1 : a[0].localeCompare(b[0])));
+}
 
 export default function AdminPage() {
   const router = useRouter();
@@ -31,6 +41,9 @@ export default function AdminPage() {
   // Documents par sous-compte
   const [openDocs, setOpenDocs] = useState<string | null>(null);
   const [docsBySub, setDocsBySub] = useState<Record<string, DocMeta[]>>({});
+  const [foldersBySub, setFoldersBySub] = useState<Record<string, string[]>>({});
+  const [uploadFolder, setUploadFolder] = useState<Record<string, string>>({});
+  const [newFolder, setNewFolder] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState<string | null>(null);
   // Notes par sous-compte
   const [openNotes, setOpenNotes] = useState<string | null>(null);
@@ -125,12 +138,26 @@ export default function AdminPage() {
         const res = await authedFetch(`/api/admin/documents?subaccount=${encodeURIComponent(name)}`);
         const data = await res.json();
         setDocsBySub((m) => ({ ...m, [name]: Array.isArray(data.documents) ? data.documents : [] }));
+        setFoldersBySub((m) => ({ ...m, [name]: Array.isArray(data.folders) ? data.folders : [] }));
       } catch {
         setDocsBySub((m) => ({ ...m, [name]: [] }));
       }
     },
     [authedFetch]
   );
+
+  async function addFolder(name: string) {
+    const folder = (newFolder[name] ?? "").trim();
+    if (!folder) return;
+    await authedFetch("/api/admin/folders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subaccount: name, name: folder }),
+    });
+    setNewFolder((m) => ({ ...m, [name]: "" }));
+    setUploadFolder((m) => ({ ...m, [name]: folder }));
+    await loadDocs(name);
+  }
 
   function toggleDocs(name: string) {
     if (openDocs === name) {
@@ -149,6 +176,8 @@ export default function AdminPage() {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("subaccount", name);
+      const folder = uploadFolder[name] ?? "";
+      if (folder) fd.append("folder", folder);
       const res = await fetch("/api/admin/documents", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }, // pas de Content-Type : le navigateur gère le multipart
@@ -250,6 +279,9 @@ export default function AdminPage() {
             <ArrowLeft className="size-4" /> Tableau de bord
           </Link>
           <span className="kicker text-smoke">Zone admin</span>
+          <Link href="/admin/assistant" className="inline-flex items-center gap-1 text-sm text-smoke underline-offset-2 hover:text-ink hover:underline">
+            <Sparkles className="size-3.5" /> Assistant IA
+          </Link>
           <Link href="/tableau-de-bord/demo" className="text-sm text-smoke underline-offset-2 hover:text-ink hover:underline">
             Tableau démo
           </Link>
@@ -439,51 +471,91 @@ export default function AdminPage() {
 
                   {openDocs === r.name && (
                     <div className="mt-3">
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-[2px] border border-line px-3 py-2 text-sm text-ink hover:bg-paper-2">
-                        {uploading === r.name ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                        Déposer un document
+                      {/* Dossier cible + création */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={uploadFolder[r.name] ?? ""}
+                          onChange={(e) => setUploadFolder((m) => ({ ...m, [r.name]: e.target.value }))}
+                          className="h-9 rounded-[2px] border border-line bg-white px-2 text-xs text-ink outline-none focus:border-ink"
+                        >
+                          <option value="">Racine</option>
+                          {(foldersBySub[r.name] ?? []).map((f) => (
+                            <option key={f} value={f}>{f}</option>
+                          ))}
+                        </select>
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-[2px] border border-line px-3 py-2 text-sm text-ink hover:bg-paper-2">
+                          {uploading === r.name ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                          Déposer ici
+                          <input
+                            type="file"
+                            className="hidden"
+                            disabled={uploading === r.name}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) uploadDoc(r.name, f);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                        <span className="mx-1 h-5 w-px bg-line" />
                         <input
-                          type="file"
-                          className="hidden"
-                          disabled={uploading === r.name}
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) uploadDoc(r.name, f);
-                            e.target.value = "";
-                          }}
+                          className="h-9 w-40 rounded-[2px] border border-line bg-white px-2 text-xs text-ink outline-none focus:border-ink"
+                          placeholder="Nouveau dossier (ex. Baux)"
+                          value={newFolder[r.name] ?? ""}
+                          onChange={(e) => setNewFolder((m) => ({ ...m, [r.name]: e.target.value }))}
                         />
-                      </label>
+                        <button
+                          type="button"
+                          onClick={() => addFolder(r.name)}
+                          disabled={!(newFolder[r.name] ?? "").trim()}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-[2px] border border-line px-2.5 text-xs text-ink hover:bg-paper-2 disabled:opacity-50"
+                        >
+                          <FolderPlus className="size-3.5" /> Créer
+                        </button>
+                      </div>
 
-                      <ul className="mt-3 flex flex-col divide-y divide-line-soft">
-                        {(docsBySub[r.name] ?? []).map((d) => (
-                          <li key={d.id} className="flex items-center gap-3 py-2 text-sm">
-                            <FileText className="size-4 shrink-0 text-smoke" />
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-ink">{d.name}</p>
-                              <p className="text-xs text-smoke">
-                                {new Date(d.uploadedAt).toLocaleString("fr-CA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      {/* Liste groupée par dossier */}
+                      <div className="mt-3 flex flex-col gap-3">
+                        {groupDocs(docsBySub[r.name] ?? []).map(([folder, items]) => (
+                          <div key={folder || "__root"}>
+                            {folder && (
+                              <p className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-smoke">
+                                <Folder className="size-3.5" /> {folder}
                               </p>
-                            </div>
-                            {d.url && (
-                              <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-smoke hover:text-ink" aria-label="Télécharger">
-                                <Download className="size-4" />
-                              </a>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => deleteDoc(r.name, d.id)}
-                              disabled={busy === `doc-${d.id}`}
-                              className="text-smoke hover:text-red-600 disabled:opacity-50"
-                              aria-label="Supprimer"
-                            >
-                              {busy === `doc-${d.id}` ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                            </button>
-                          </li>
+                            <ul className="flex flex-col divide-y divide-line-soft">
+                              {items.map((d) => (
+                                <li key={d.id} className="flex items-center gap-3 py-2 text-sm">
+                                  <FileText className="size-4 shrink-0 text-smoke" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-ink">{d.name}</p>
+                                    <p className="text-xs text-smoke">
+                                      {new Date(d.uploadedAt).toLocaleString("fr-CA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                    </p>
+                                  </div>
+                                  {d.url && (
+                                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-smoke hover:text-ink" aria-label="Télécharger">
+                                      <Download className="size-4" />
+                                    </a>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteDoc(r.name, d.id)}
+                                    disabled={busy === `doc-${d.id}`}
+                                    className="text-smoke hover:text-red-600 disabled:opacity-50"
+                                    aria-label="Supprimer"
+                                  >
+                                    {busy === `doc-${d.id}` ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         ))}
                         {(docsBySub[r.name]?.length ?? 0) === 0 && (
-                          <li className="py-2 text-xs text-smoke">Aucun document déposé.</li>
+                          <p className="py-2 text-xs text-smoke">Aucun document déposé.</p>
                         )}
-                      </ul>
+                      </div>
                     </div>
                   )}
                 </div>

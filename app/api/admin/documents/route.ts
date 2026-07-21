@@ -6,7 +6,7 @@
  * ------------------------------------------------------------------ */
 
 import { verifyBearer } from "@/lib/access";
-import { deleteDocument, listDocuments, uploadDocument } from "@/lib/documents";
+import { deleteDocument, listDocuments, listFolders, uploadDocument } from "@/lib/documents";
 import { emailsForSubaccount } from "@/lib/owners-admin";
 import { brandedBody, sendBrandedEmail } from "@/lib/email";
 
@@ -23,7 +23,8 @@ export async function GET(request: Request) {
   const subaccount = new URL(request.url).searchParams.get("subaccount")?.trim() || "";
   if (!subaccount) return Response.json({ error: "Sous-compte manquant." }, { status: 400 });
   try {
-    return Response.json({ documents: await listDocuments([subaccount]) });
+    const [documents, folders] = await Promise.all([listDocuments([subaccount]), listFolders(subaccount)]);
+    return Response.json({ documents, folders });
   } catch (err) {
     return Response.json({ error: (err as Error).message }, { status: 500 });
   }
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
   }
   const file = form.get("file");
   const subaccount = String(form.get("subaccount") ?? "").trim();
+  const folder = String(form.get("folder") ?? "").trim();
   if (!subaccount) return Response.json({ error: "Sous-compte manquant." }, { status: 400 });
   if (!(file instanceof File)) return Response.json({ error: "Fichier manquant." }, { status: 400 });
   if (file.size > 25 * 1024 * 1024) return Response.json({ error: "Fichier trop volumineux (max 25 Mo)." }, { status: 400 });
@@ -53,6 +55,7 @@ export async function POST(request: Request) {
       filename: file.name || "document",
       contentType: file.type || "application/octet-stream",
       buffer,
+      folder,
       uploadedBy: id.email,
     });
 

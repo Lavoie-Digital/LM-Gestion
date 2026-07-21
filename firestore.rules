@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// ------------------------------------------------------------------ //
+// Règles de sécurité Firestore — LM Gestion Immobilière
+//
+// Tout l'accès applicatif passe par le serveur (Firebase Admin SDK), qui
+// CONTOURNE ces règles. Le navigateur n'a donc aucun besoin d'accès direct :
+// on refuse tout. C'est la deuxième barrière (la vraie sécurité = côté serveur,
+// via la vérification du jeton et le filtrage par sous-compte).
+// ------------------------------------------------------------------ //
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Toutes les collections sont gérées par le serveur (Admin SDK) → aucun
+    // accès depuis le navigateur.
+    match /owners/{doc}            { allow read, write: if false; }
+    match /admins/{doc}            { allow read, write: if false; }
+    match /documents/{doc}         { allow read, write: if false; }
+    match /doc_folders/{doc}       { allow read, write: if false; }
+    match /notes/{doc}             { allow read, write: if false; }
+    match /plexflow_events/{doc}   { allow read, write: if false; }
+    match /pf_units/{doc}          { allow read, write: if false; }
+    match /pf_tenants/{doc}        { allow read, write: if false; }
+    match /metrics_snapshots/{doc} { allow read, write: if false; }
+
+    // Refus par défaut pour tout le reste.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,10 +1,11 @@
 "use client";
 
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Folder } from "lucide-react";
 
 export type DocMeta = {
   id: string;
   name: string;
+  folder?: string;
   contentType: string;
   size: number;
   uploadedAt: string;
@@ -20,6 +21,16 @@ function fmtDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleString("fr-CA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+/** Regroupe par dossier — racine ("") en premier, puis dossiers triés. */
+function groupByFolder(docs: DocMeta[]): [string, DocMeta[]][] {
+  const map = new Map<string, DocMeta[]>();
+  for (const d of docs) {
+    const f = d.folder ?? "";
+    (map.get(f) ?? map.set(f, []).get(f)!).push(d);
+  }
+  return [...map.entries()].sort((a, b) => (a[0] === "" ? -1 : b[0] === "" ? 1 : a[0].localeCompare(b[0])));
 }
 
 export function DocumentsSection({ docs }: { docs: DocMeta[] }) {
@@ -40,32 +51,43 @@ export function DocumentsSection({ docs }: { docs: DocMeta[] }) {
           Aucun document pour l'instant. Vous serez notifié par courriel dès qu'un nouveau document sera disponible.
         </p>
       ) : (
-        <ul className="mt-5 flex flex-col divide-y divide-line-soft">
-          {docs.map((d) => (
-            <li key={d.id} className="flex items-center gap-4 py-3.5">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-[3px] border border-line bg-paper-2/60 text-smoke">
-                <FileText className="size-5" strokeWidth={1.6} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-ink">{d.name}</p>
-                <p className="mt-0.5 text-xs text-smoke">
-                  {fmtDate(d.uploadedAt)}
-                  {fmtSize(d.size) ? ` · ${fmtSize(d.size)}` : ""}
+        <div className="mt-5 flex flex-col gap-5">
+          {groupByFolder(docs).map(([folder, items]) => (
+            <div key={folder || "__root"}>
+              {folder && (
+                <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-smoke">
+                  <Folder className="size-3.5" /> {folder}
                 </p>
-              </div>
-              {d.url && (
-                <a
-                  href={d.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[2px] border border-line px-3.5 text-sm text-ink transition-colors hover:bg-paper-2"
-                >
-                  <Download className="size-4" /> Télécharger
-                </a>
               )}
-            </li>
+              <ul className="flex flex-col divide-y divide-line-soft">
+                {items.map((d) => (
+                  <li key={d.id} className="flex items-center gap-4 py-3.5">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-[3px] border border-line bg-paper-2/60 text-smoke">
+                      <FileText className="size-5" strokeWidth={1.6} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-ink">{d.name}</p>
+                      <p className="mt-0.5 text-xs text-smoke">
+                        {fmtDate(d.uploadedAt)}
+                        {fmtSize(d.size) ? ` · ${fmtSize(d.size)}` : ""}
+                      </p>
+                    </div>
+                    {d.url && (
+                      <a
+                        href={d.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[2px] border border-line px-3.5 text-sm text-ink transition-colors hover:bg-paper-2"
+                      >
+                        <Download className="size-4" /> Télécharger
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </section>
   );
