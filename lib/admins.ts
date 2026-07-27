@@ -23,11 +23,13 @@ export async function listDbAdmins(): Promise<{ id: string; email: string }[]> {
     .filter((a) => a.email);
 }
 
-export async function addDbAdmin(email: string): Promise<void> {
+/** Ajoute un admin. Renvoie true si NOUVEL ajout (false s'il existait déjà). */
+export async function addDbAdmin(email: string): Promise<boolean> {
   const mail = email.trim().toLowerCase();
   const existing = await adminDb().collection("admins").where("email", "==", mail).limit(1).get();
-  if (!existing.empty) return;
+  if (!existing.empty) return false;
   await adminDb().collection("admins").add({ email: mail, createdAt: FieldValue.serverTimestamp() });
+  return true;
 }
 
 export async function removeDbAdmin(email: string): Promise<void> {

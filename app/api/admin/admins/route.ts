@@ -7,11 +7,13 @@
 
 import { ADMIN_EMAILS, verifyBearer } from "@/lib/access";
 import { addDbAdmin, listDbAdmins, removeDbAdmin } from "@/lib/admins";
+import { brandedBody, sendBrandedEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SITE_URL = "https://lmgestionimmobiliere.ca";
 
 export async function GET(request: Request) {
   const id = await verifyBearer(request);
@@ -35,8 +37,25 @@ export async function POST(request: Request) {
   if (!EMAIL_RE.test(email)) return Response.json({ error: "Courriel invalide." }, { status: 400 });
 
   try {
-    await addDbAdmin(email);
-    return Response.json({ ok: true });
+    const created = await addDbAdmin(email);
+    // Courriel de bienvenue au nouvel administrateur (uniquement au 1er ajout).
+    if (created) {
+      const html = brandedBody({
+        heading: "Vous avez accès à l'espace de gestion",
+        paragraphs: [
+          "Bonjour,",
+          `Vous venez d'être ajouté comme <strong style="color:#0b0b0c;">administrateur</strong> de l'espace LM Gestion Immobilière.`,
+          `Vous pouvez dès maintenant vous connecter avec cette adresse (<strong style="color:#0b0b0c;">${email}</strong>) — via Google ou par lien de connexion, sans mot de passe à retenir.`,
+          "Vous aurez accès au tableau de bord complet et à la zone d'administration.",
+        ],
+        ctaText: "Se connecter",
+        ctaUrl: `${SITE_URL}/connexion`,
+        preheader: "Votre accès administrateur est actif",
+      });
+      const text = `Bonjour,\n\nVous avez été ajouté comme administrateur de LM Gestion Immobilière (${email}).\nConnectez-vous (Google ou lien par courriel) : ${SITE_URL}/connexion`;
+      await sendBrandedEmail({ to: email, subject: "Votre accès administrateur — LM Gestion Immobilière", html, text }).catch(() => {});
+    }
+    return Response.json({ ok: true, created });
   } catch (err) {
     return Response.json({ error: (err as Error).message }, { status: 500 });
   }
