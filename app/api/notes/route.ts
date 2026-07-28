@@ -8,6 +8,7 @@ import { authConfigured } from "@/lib/firebase-admin";
 import { ADMIN_EMAILS, verifyBearer } from "@/lib/access";
 import { subaccountsForOwnerEmail } from "@/lib/owners-admin";
 import { listDbAdmins } from "@/lib/admins";
+import { getManager } from "@/lib/managers";
 import { addNote, listNotes } from "@/lib/notes";
 import { brandedBody, escapeHtml, sendBrandedEmail } from "@/lib/email";
 
@@ -55,13 +56,20 @@ export async function POST(request: Request) {
   try {
     const note = await addNote({ subaccount, title, body: text, from: "client", author: id.email });
 
-    // Notifie les GESTIONNAIRES seulement (admins ajoutés en base + boîte de
-    // contact). Les admins « env » (le dev) sont EXCLUS des notifications.
-    const dbAdmins = await listDbAdmins().catch(() => []);
-    const inbox = process.env.CONTACT_INBOX_EMAIL?.trim().toLowerCase();
-    const recipients = [...new Set([...dbAdmins.map((a) => a.email), ...(inbox ? [inbox] : [])])].filter(
-      (e) => !ADMIN_EMAILS.includes(e)
-    );
+    // Destinataire(s) : le GESTIONNAIRE ASSIGNÉ à ce sous-compte s'il y en a un ;
+    // sinon, repli sur les gestionnaires (admins base + boîte de contact), le
+    // dev (admins « env ») étant toujours exclu.
+    const assigned = await getManager(subaccount).catch(() => null);
+    let recipients: string[];
+    if (assigned) {
+      recipients = [assigned];
+    } else {
+      const dbAdmins = await listDbAdmins().catch(() => []);
+      const inbox = process.env.CONTACT_INBOX_EMAIL?.trim().toLowerCase();
+      recipients = [...new Set([...dbAdmins.map((a) => a.email), ...(inbox ? [inbox] : [])])].filter(
+        (e) => !ADMIN_EMAILS.includes(e)
+      );
+    }
     const preview = text.length > 400 ? `${text.slice(0, 400)}…` : text;
     const html = brandedBody({
       heading: "Nouveau message d'un client",

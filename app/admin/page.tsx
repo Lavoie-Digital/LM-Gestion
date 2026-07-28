@@ -9,7 +9,7 @@ import { formatCAD } from "@/lib/utils";
 import { DocumentExplorer } from "@/components/admin/document-explorer";
 import type { NoteMeta } from "@/components/dashboard/notes";
 
-type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[]; unreadNotes?: number };
+type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[]; unreadNotes?: number; manager?: string | null };
 type Admins = { envAdmins: string[]; dbAdmins: { id: string; email: string }[] };
 
 const inputCls =
@@ -183,6 +183,19 @@ export default function AdminPage() {
 
   const linkedCount = rows.filter((r) => r.emails.length > 0).length;
   const totalUnread = rows.reduce((s, r) => s + (r.unreadNotes ?? 0), 0);
+  const adminEmails = useMemo(
+    () => [...new Set([...admins.envAdmins, ...admins.dbAdmins.map((a) => a.email)])],
+    [admins]
+  );
+
+  const assignManager = (name: string, manager: string) =>
+    run(`mgr-${name}`, () =>
+      authedFetch("/api/admin/managers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subaccount: name, manager }),
+      })
+    );
 
   if (loading || !user || !isAdmin) {
     return (
@@ -394,6 +407,26 @@ export default function AdminPage() {
                     {busy === `link-${r.name}` ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />} Associer
                   </button>
                 </form>
+
+                {/* Gestionnaire assigné (reçoit les notifications de ce client) */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line-soft pt-3">
+                  <span className="text-xs text-smoke">Gestionnaire :</span>
+                  <select
+                    value={r.manager ?? ""}
+                    onChange={(e) => assignManager(r.name, e.target.value)}
+                    disabled={busy === `mgr-${r.name}`}
+                    className="h-9 rounded-[2px] border border-line bg-white px-2 text-xs text-ink outline-none focus:border-ink"
+                  >
+                    <option value="">Par défaut (tous)</option>
+                    {adminEmails.map((e) => (
+                      <option key={e} value={e}>{e}</option>
+                    ))}
+                    {/* Conserve une valeur assignée même si l'admin a été retiré de la liste */}
+                    {r.manager && !adminEmails.includes(r.manager) && <option value={r.manager}>{r.manager}</option>}
+                  </select>
+                  {busy === `mgr-${r.name}` && <Loader2 className="size-3.5 animate-spin text-smoke" />}
+                  {r.manager && <span className="text-xs text-smoke">reçoit les notes de ce client</span>}
+                </div>
 
                 {/* Documents du sous-compte — ouvre l'explorateur */}
                 <div className="mt-3 border-t border-line-soft pt-3">
