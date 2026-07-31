@@ -9,6 +9,8 @@ export type NoteMeta = {
   body: string;
   from: "manager" | "client";
   author?: string;
+  status?: "sent" | "scheduled";
+  scheduledFor?: string | null;
   createdAt: string;
 };
 

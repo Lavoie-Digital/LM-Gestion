@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, FolderOpen, Loader2, LogOut, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Clock, FolderOpen, Loader2, LogOut, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatCAD } from "@/lib/utils";
 import { DocumentExplorer } from "@/components/admin/document-explorer";
@@ -34,7 +34,7 @@ export default function AdminPage() {
   // Notes par sous-compte
   const [openNotes, setOpenNotes] = useState<string | null>(null);
   const [notesBySub, setNotesBySub] = useState<Record<string, NoteMeta[]>>({});
-  const [noteDrafts, setNoteDrafts] = useState<Record<string, { title: string; body: string }>>({});
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, { title: string; body: string; scheduledFor: string }>>({});
   const [sendingNote, setSendingNote] = useState<string | null>(null);
 
   useEffect(() => {
@@ -143,18 +143,24 @@ export default function AdminPage() {
   }
 
   async function sendNote(name: string) {
-    const draft = noteDrafts[name] ?? { title: "", body: "" };
+    const draft = noteDrafts[name] ?? { title: "", body: "", scheduledFor: "" };
     if (!draft.body.trim()) return;
+    // datetime-local (heure locale) → ISO UTC pour comparaison serveur.
+    let scheduledFor: string | null = null;
+    if (draft.scheduledFor) {
+      const d = new Date(draft.scheduledFor);
+      if (!Number.isNaN(d.getTime())) scheduledFor = d.toISOString();
+    }
     setSendingNote(name);
     setError(null);
     try {
       const res = await authedFetch("/api/admin/notes", {
         method: "POST",
-        body: JSON.stringify({ subaccount: name, title: draft.title, body: draft.body }),
+        body: JSON.stringify({ subaccount: name, title: draft.title, body: draft.body, scheduledFor }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Envoi impossible.");
-      setNoteDrafts((m) => ({ ...m, [name]: { title: "", body: "" } }));
+      setNoteDrafts((m) => ({ ...m, [name]: { title: "", body: "", scheduledFor: "" } }));
       await loadNotes(name);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Envoi impossible.");
@@ -462,30 +468,56 @@ export default function AdminPage() {
                           type="text"
                           placeholder="Titre (optionnel)"
                           value={noteDrafts[r.name]?.title ?? ""}
-                          onChange={(e) => setNoteDrafts((m) => ({ ...m, [r.name]: { title: e.target.value, body: m[r.name]?.body ?? "" } }))}
+                          onChange={(e) => setNoteDrafts((m) => ({ ...m, [r.name]: { title: e.target.value, body: m[r.name]?.body ?? "", scheduledFor: m[r.name]?.scheduledFor ?? "" } }))}
                           className={inputCls}
                         />
                         <textarea
-                          placeholder="Écrire une note au client…"
+                          placeholder="Écrire une note au client… (ou une réponse)"
                           rows={3}
                           value={noteDrafts[r.name]?.body ?? ""}
-                          onChange={(e) => setNoteDrafts((m) => ({ ...m, [r.name]: { title: m[r.name]?.title ?? "", body: e.target.value } }))}
+                          onChange={(e) => setNoteDrafts((m) => ({ ...m, [r.name]: { title: m[r.name]?.title ?? "", body: e.target.value, scheduledFor: m[r.name]?.scheduledFor ?? "" } }))}
                           className="w-full rounded-[2px] border border-line bg-white px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
                         />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="flex items-center gap-1.5 text-xs text-smoke">
+                            <Clock className="size-3.5" /> Programmer l'envoi :
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={noteDrafts[r.name]?.scheduledFor ?? ""}
+                            onChange={(e) => setNoteDrafts((m) => ({ ...m, [r.name]: { title: m[r.name]?.title ?? "", body: m[r.name]?.body ?? "", scheduledFor: e.target.value } }))}
+                            className="h-9 rounded-[2px] border border-line bg-white px-2 text-xs text-ink outline-none focus:border-ink"
+                          />
+                          {noteDrafts[r.name]?.scheduledFor && (
+                            <button
+                              type="button"
+                              onClick={() => setNoteDrafts((m) => ({ ...m, [r.name]: { title: m[r.name]?.title ?? "", body: m[r.name]?.body ?? "", scheduledFor: "" } }))}
+                              className="text-xs text-smoke underline-offset-2 hover:text-ink hover:underline"
+                            >
+                              annuler
+                            </button>
+                          )}
+                        </div>
                         <button
                           type="submit"
                           disabled={sendingNote === r.name}
                           className="inline-flex h-10 w-fit items-center justify-center gap-1.5 rounded-[2px] bg-ink px-3.5 text-sm font-medium text-paper disabled:opacity-50"
                         >
-                          {sendingNote === r.name ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Envoyer la note
+                          {sendingNote === r.name ? <Loader2 className="size-4 animate-spin" /> : noteDrafts[r.name]?.scheduledFor ? <Clock className="size-4" /> : <Send className="size-4" />}
+                          {noteDrafts[r.name]?.scheduledFor ? "Programmer" : "Envoyer la note"}
                         </button>
                       </form>
 
                       <ul className="mt-3 flex flex-col gap-2">
                         {(notesBySub[r.name] ?? []).map((n) => (
-                          <li key={n.id} className={`rounded-[2px] border p-3 text-sm ${n.from === "client" ? "border-ink/40 bg-white" : "border-line bg-paper-2/40"}`}>
+                          <li key={n.id} className={`rounded-[2px] border p-3 text-sm ${n.status === "scheduled" ? "border-dashed border-ink/40 bg-paper-2/30" : n.from === "client" ? "border-ink/40 bg-white" : "border-line bg-paper-2/40"}`}>
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
+                                {n.status === "scheduled" && n.scheduledFor && (
+                                  <p className="mb-1 inline-flex items-center gap-1 rounded-full border border-ink/40 px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-ink">
+                                    <Clock className="size-3" /> Programmé · {new Date(n.scheduledFor).toLocaleString("fr-CA", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                  </p>
+                                )}
                                 {n.from === "client" && (
                                   <p className="mb-1 inline-flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-paper">
                                     Du client{n.author ? ` · ${n.author}` : ""}

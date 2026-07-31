@@ -10,6 +10,7 @@ import { subaccountsForOwnerEmail } from "@/lib/owners-admin";
 import { listDbAdmins } from "@/lib/admins";
 import { getManager } from "@/lib/managers";
 import { addNote, listNotes } from "@/lib/notes";
+import { releaseAndNotifyNotes } from "@/lib/note-mailer";
 import { brandedBody, escapeHtml, sendBrandedEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,9 @@ export async function GET(request: Request) {
   const subaccounts = id.isAdmin ? (viewAs ? [viewAs] : null) : await subaccountsForOwnerEmail(id.email);
 
   try {
-    return Response.json({ notes: await listNotes(subaccounts) });
+    await releaseAndNotifyNotes().catch(() => 0); // libère les notes programmées échues
+    // Le client ne voit QUE les notes envoyées (jamais les programmées).
+    return Response.json({ notes: await listNotes(subaccounts, { onlySent: true }) });
   } catch (err) {
     return Response.json({ notes: [], error: (err as Error).message }, { status: 502 });
   }
