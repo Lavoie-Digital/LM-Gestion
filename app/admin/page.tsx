@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Clock, FolderOpen, Loader2, LogOut, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Clock, CornerDownRight, FolderOpen, Loader2, LogOut, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatCAD } from "@/lib/utils";
 import { DocumentExplorer } from "@/components/admin/document-explorer";
-import type { NoteMeta } from "@/components/dashboard/notes";
+import { buildThreads, type NoteMeta } from "@/components/dashboard/notes";
 
 type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[]; unreadNotes?: number; manager?: string | null };
 type Admins = { envAdmins: string[]; dbAdmins: { id: string; email: string }[] };
@@ -36,6 +36,9 @@ export default function AdminPage() {
   const [notesBySub, setNotesBySub] = useState<Record<string, NoteMeta[]>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, { title: string; body: string; scheduledFor: string }>>({});
   const [sendingNote, setSendingNote] = useState<string | null>(null);
+  const [replyOpen, setReplyOpen] = useState<string | null>(null); // id de la note racine
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyBusy, setReplyBusy] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.replace("/connexion");
@@ -175,6 +178,27 @@ export default function AdminPage() {
       await loadNotes(name);
       return res;
     });
+
+  async function replyNote(name: string, rootId: string) {
+    const text = (replyDraft[rootId] ?? "").trim();
+    if (!text) return;
+    setReplyBusy(rootId);
+    setError(null);
+    try {
+      const res = await authedFetch("/api/admin/notes", {
+        method: "POST",
+        body: JSON.stringify({ subaccount: name, body: text, parentId: rootId }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Réponse impossible.");
+      setReplyDraft((m) => ({ ...m, [rootId]: "" }));
+      setReplyOpen(null);
+      await loadNotes(name);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Réponse impossible.");
+    } finally {
+      setReplyBusy(null);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -508,41 +532,69 @@ export default function AdminPage() {
                         </button>
                       </form>
 
-                      <ul className="mt-3 flex flex-col gap-2">
-                        {(notesBySub[r.name] ?? []).map((n) => (
-                          <li key={n.id} className={`rounded-[2px] border p-3 text-sm ${n.status === "scheduled" ? "border-dashed border-ink/40 bg-paper-2/30" : n.from === "client" ? "border-ink/40 bg-white" : "border-line bg-paper-2/40"}`}>
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                {n.status === "scheduled" && n.scheduledFor && (
-                                  <p className="mb-1 inline-flex items-center gap-1 rounded-full border border-ink/40 px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-ink">
-                                    <Clock className="size-3" /> Programmé · {new Date(n.scheduledFor).toLocaleString("fr-CA", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      <div className="mt-3 flex flex-col gap-2">
+                        {buildThreads(notesBySub[r.name] ?? []).map(({ root, replies }) => {
+                          const msg = (n: NoteMeta) => (
+                            <div key={n.id} className={`rounded-[2px] border p-3 text-sm ${n.status === "scheduled" ? "border-dashed border-ink/40 bg-paper-2/30" : n.from === "client" ? "border-ink/40 bg-white" : "border-line bg-paper-2/40"}`}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  {n.status === "scheduled" && n.scheduledFor && (
+                                    <p className="mb-1 inline-flex items-center gap-1 rounded-full border border-ink/40 px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-ink">
+                                      <Clock className="size-3" /> Programmé · {new Date(n.scheduledFor).toLocaleString("fr-CA", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                    </p>
+                                  )}
+                                  <p className="mb-1 text-[0.6rem] font-medium uppercase tracking-wide text-smoke/70">
+                                    {n.from === "client" ? `Client${n.author ? ` · ${n.author}` : ""}` : "Gestionnaire"}
                                   </p>
-                                )}
-                                {n.from === "client" && (
-                                  <p className="mb-1 inline-flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-paper">
-                                    Du client{n.author ? ` · ${n.author}` : ""}
+                                  {n.title && <p className="font-medium text-ink">{n.title}</p>}
+                                  <p className="whitespace-pre-wrap break-words text-smoke">{n.body}</p>
+                                  <p className="mt-1 text-[0.7rem] uppercase tracking-wide text-smoke/60">
+                                    {new Date(n.createdAt).toLocaleString("fr-CA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                                   </p>
-                                )}
-                                {n.title && <p className="font-medium text-ink">{n.title}</p>}
-                                <p className="whitespace-pre-wrap break-words text-smoke">{n.body}</p>
-                                <p className="mt-1 text-[0.7rem] uppercase tracking-wide text-smoke/60">
-                                  {new Date(n.createdAt).toLocaleString("fr-CA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                                </p>
+                                </div>
+                                <button type="button" onClick={() => deleteNote(r.name, n.id)} disabled={busy === `note-${n.id}`} className="shrink-0 text-smoke hover:text-red-600 disabled:opacity-50" aria-label="Supprimer">
+                                  {busy === `note-${n.id}` ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                                </button>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => deleteNote(r.name, n.id)}
-                                disabled={busy === `note-${n.id}`}
-                                className="shrink-0 text-smoke hover:text-red-600 disabled:opacity-50"
-                                aria-label="Supprimer"
-                              >
-                                {busy === `note-${n.id}` ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                              </button>
                             </div>
-                          </li>
-                        ))}
-                        {(notesBySub[r.name]?.length ?? 0) === 0 && <li className="text-xs text-smoke">Aucune note.</li>}
-                      </ul>
+                          );
+                          return (
+                            <div key={root.id} className="rounded-[3px] border border-line-soft p-2">
+                              {msg(root)}
+                              {replies.length > 0 && (
+                                <div className="mt-2 flex flex-col gap-2 border-l-2 border-line pl-3">
+                                  {replies.map((rep) => msg(rep))}
+                                </div>
+                              )}
+                              <div className="mt-2 pl-1">
+                                {replyOpen === root.id ? (
+                                  <div className="flex flex-col gap-2">
+                                    <textarea
+                                      autoFocus
+                                      rows={2}
+                                      value={replyDraft[root.id] ?? ""}
+                                      onChange={(e) => setReplyDraft((m) => ({ ...m, [root.id]: e.target.value }))}
+                                      placeholder="Votre réponse au client…"
+                                      className="w-full rounded-[2px] border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <button type="button" onClick={() => replyNote(r.name, root.id)} disabled={replyBusy === root.id || !(replyDraft[root.id] ?? "").trim()} className="inline-flex h-8 items-center gap-1.5 rounded-[2px] bg-ink px-3 text-xs font-medium text-paper disabled:opacity-50">
+                                        {replyBusy === root.id ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} Répondre
+                                      </button>
+                                      <button type="button" onClick={() => setReplyOpen(null)} className="text-xs text-smoke hover:text-ink">Annuler</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button type="button" onClick={() => setReplyOpen(root.id)} className="inline-flex items-center gap-1.5 text-xs text-smoke hover:text-ink">
+                                    <CornerDownRight className="size-3.5" /> Répondre
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {(notesBySub[r.name]?.length ?? 0) === 0 && <p className="text-xs text-smoke">Aucune note.</p>}
+                      </div>
                     </div>
                   )}
                 </div>

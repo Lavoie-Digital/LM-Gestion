@@ -19,6 +19,7 @@ export type NoteMeta = {
   author?: string;
   status: NoteStatus;
   scheduledFor?: string | null; // ISO — si programmé
+  parentId?: string | null; // null = début d'un fil (sujet) ; sinon = réponse
   createdAt: string; // ISO
 };
 
@@ -29,6 +30,7 @@ export async function addNote(input: {
   from: NoteFrom;
   author?: string;
   scheduledFor?: string | null;
+  parentId?: string | null;
 }): Promise<NoteMeta> {
   const db = adminDb();
   const ref = db.collection("notes").doc();
@@ -36,6 +38,7 @@ export async function addNote(input: {
   // Programmé seulement si la date est dans le futur.
   const scheduledFor = input.scheduledFor && input.scheduledFor > createdAt ? input.scheduledFor : null;
   const status: NoteStatus = scheduledFor ? "scheduled" : "sent";
+  const parentId = input.parentId?.trim() || null;
   const note = {
     subaccount: input.subaccount.trim(),
     title: input.title.trim(),
@@ -44,13 +47,14 @@ export async function addNote(input: {
     author: input.author ?? null,
     status,
     scheduledFor,
+    parentId,
     sentAt: scheduledFor ? null : createdAt,
     // Non lue côté gestionnaire uniquement pour une note DU CLIENT déjà envoyée.
     read: input.from !== "client",
     createdAt,
   };
   await ref.set({ ...note, serverCreatedAt: FieldValue.serverTimestamp() });
-  return { id: ref.id, subaccount: note.subaccount, title: note.title, body: note.body, from: note.from, author: input.author, status, scheduledFor, createdAt };
+  return { id: ref.id, subaccount: note.subaccount, title: note.title, body: note.body, from: note.from, author: input.author, status, scheduledFor, parentId, createdAt };
 }
 
 /** Libère les notes programmées échues (statut → envoyé). Exactly-once via transaction.
@@ -144,6 +148,7 @@ export async function listNotes(
         author: typeof x.author === "string" ? x.author : undefined,
         status: x.status === "scheduled" ? "scheduled" : "sent",
         scheduledFor: typeof x.scheduledFor === "string" ? x.scheduledFor : null,
+        parentId: typeof x.parentId === "string" ? x.parentId : null,
         createdAt: String(x.createdAt ?? ""),
       } satisfies NoteMeta;
     })

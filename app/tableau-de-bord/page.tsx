@@ -118,7 +118,7 @@ function LiveView({
   notes: NoteMeta[];
   viewAs: string;
   onViewAsChange: (v: string) => void;
-  onSendNote?: (text: string) => Promise<void>;
+  onSendNote?: (text: string, parentId?: string) => Promise<void>;
 }) {
   const k = data.kpis!;
   const byBuilding = data.byBuilding ?? [];
@@ -331,13 +331,13 @@ export default function DashboardPage() {
   }, [user, viewAs]);
 
   const sendNote = useCallback(
-    async (text: string) => {
+    async (text: string, parentId?: string) => {
       if (!user) return;
       const token = await user.getIdToken();
       const res = await fetch("/api/notes", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ body: text }),
+        body: JSON.stringify({ body: text, parentId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Envoi impossible.");

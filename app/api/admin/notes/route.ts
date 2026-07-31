@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   if (!id) return Response.json({ error: "Non authentifié." }, { status: 401 });
   if (!id.isAdmin) return Response.json({ error: "Réservé aux admins." }, { status: 403 });
 
-  let body: { subaccount?: string; title?: string; body?: string; scheduledFor?: string };
+  let body: { subaccount?: string; title?: string; body?: string; scheduledFor?: string; parentId?: string };
   try {
     body = await request.json();
   } catch {
@@ -43,11 +43,12 @@ export async function POST(request: Request) {
   const title = (body.title ?? "").trim();
   const text = (body.body ?? "").trim();
   const scheduledFor = (body.scheduledFor ?? "").trim() || null;
+  const parentId = (body.parentId ?? "").trim() || null;
   if (!subaccount) return Response.json({ error: "Sous-compte manquant." }, { status: 400 });
   if (!text) return Response.json({ error: "La note est vide." }, { status: 400 });
 
   try {
-    const note = await addNote({ subaccount, title, body: text, from: "manager", author: id.email, scheduledFor });
+    const note = await addNote({ subaccount, title, body: text, from: "manager", author: id.email, scheduledFor, parentId });
     // Envoi immédiat → on notifie tout de suite. Programmé → notifié à la libération.
     let notified = 0;
     if (note.status === "sent") {

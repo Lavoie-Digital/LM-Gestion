@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const id = await verifyBearer(request);
   if (!id) return Response.json({ error: "Non authentifié." }, { status: 401 });
 
-  let body: { body?: string; title?: string };
+  let body: { body?: string; title?: string; parentId?: string };
   try {
     body = await request.json();
   } catch {
@@ -47,6 +47,7 @@ export async function POST(request: Request) {
   }
   const text = (body.body ?? "").trim();
   const title = (body.title ?? "").trim();
+  const parentId = (body.parentId ?? "").trim() || null;
   if (!text) return Response.json({ error: "La note est vide." }, { status: 400 });
 
   // Le client écrit depuis SON périmètre. On rattache la note à son sous-compte.
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const note = await addNote({ subaccount, title, body: text, from: "client", author: id.email });
+    const note = await addNote({ subaccount, title, body: text, from: "client", author: id.email, parentId });
 
     // Destinataire(s) : le GESTIONNAIRE ASSIGNÉ à ce sous-compte s'il y en a un ;
     // sinon, repli sur les gestionnaires (admins base + boîte de contact), le
