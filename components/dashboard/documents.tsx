@@ -51,7 +51,7 @@ export function DocumentsSection({ docs }: { docs: DocMeta[] }) {
           Aucun document pour l'instant. Vous serez notifié par courriel dès qu'un nouveau document sera disponible.
         </p>
       ) : (
-        <div className="mt-5 flex flex-col gap-5">
+        <div className="mt-5 flex max-h-[26rem] flex-col gap-5 overflow-y-auto pr-1">
           {groupByFolder(docs).map(([folder, items]) => (
             <div key={folder || "__root"}>
               {folder && (

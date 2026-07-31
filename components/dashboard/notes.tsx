@@ -81,7 +81,7 @@ export function NotesSection({
           Aucune note pour l'instant.
         </p>
       ) : (
-        <ul className="mt-5 flex flex-col gap-3">
+        <ul className="mt-5 flex max-h-[26rem] flex-col gap-3 overflow-y-auto pr-1">
           {notes.map((n) => {
             const mine = n.from === "client";
             return (
