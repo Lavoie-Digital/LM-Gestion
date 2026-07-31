@@ -334,16 +334,18 @@ export default function DashboardPage() {
     async (text: string, parentId?: string) => {
       if (!user) return;
       const token = await user.getIdToken();
-      const res = await fetch("/api/notes", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ body: text, parentId }),
-      });
+      const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+      // Client → /api/notes (from client). Admin en « Voir en tant que » →
+      // /api/admin/notes (réponse du gestionnaire au sous-compte prévisualisé).
+      const res =
+        isAdmin && viewAs
+          ? await fetch("/api/admin/notes", { method: "POST", headers, body: JSON.stringify({ subaccount: viewAs, body: text, parentId }) })
+          : await fetch("/api/notes", { method: "POST", headers, body: JSON.stringify({ body: text, parentId }) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Envoi impossible.");
       await load();
     },
-    [user, load]
+    [user, load, isAdmin, viewAs]
   );
 
   useEffect(() => {
@@ -421,7 +423,7 @@ export default function DashboardPage() {
             notes={notes}
             viewAs={viewAs}
             onViewAsChange={setViewAs}
-            onSendNote={isAdmin ? undefined : sendNote}
+            onSendNote={!isAdmin || viewAs ? sendNote : undefined}
           />
         ) : (
           <DemoView />
