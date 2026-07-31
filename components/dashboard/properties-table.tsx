@@ -48,15 +48,15 @@ export function PropertiesTable({
         </span>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="max-h-[26rem] overflow-auto">
         <table className="w-full min-w-[640px] text-left">
           <thead>
-            <tr className="border-b border-line text-[0.6rem] uppercase tracking-[0.14em] text-smoke">
-              <th className="px-6 py-3 font-medium">Immeuble</th>
-              <th className="px-6 py-3 font-medium">Logements</th>
-              <th className="px-6 py-3 font-medium">Occupation</th>
-              <th className="px-6 py-3 text-right font-medium">Revenu mensuel</th>
-              <th className="px-6 py-3 text-right font-medium">Tendance</th>
+            <tr className="text-[0.6rem] uppercase tracking-[0.14em] text-smoke">
+              <th className="sticky top-0 z-10 border-b border-line bg-white px-6 py-3 font-medium">Immeuble</th>
+              <th className="sticky top-0 z-10 border-b border-line bg-white px-6 py-3 font-medium">Logements</th>
+              <th className="sticky top-0 z-10 border-b border-line bg-white px-6 py-3 font-medium">Occupation</th>
+              <th className="sticky top-0 z-10 border-b border-line bg-white px-6 py-3 text-right font-medium">Revenu mensuel</th>
+              <th className="sticky top-0 z-10 border-b border-line bg-white px-6 py-3 text-right font-medium">Tendance</th>
             </tr>
           </thead>
           <tbody>

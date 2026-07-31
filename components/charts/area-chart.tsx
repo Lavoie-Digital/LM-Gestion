@@ -24,16 +24,19 @@ export function AreaChart({
   const H = height;
   const padY = 26;
 
-  const values = data.map((d) => d.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  // Robustesse : on ignore les valeurs non finies (sinon un seul NaN casse tout
+  // le tracé SVG et il ne reste que le point final).
+  const clean = data.filter((d) => Number.isFinite(d.value));
+  const values = clean.map((d) => d.value);
+  const n = clean.length;
+  const min = n ? Math.min(...values) : 0;
+  const max = n ? Math.max(...values) : 1;
   const span = max - min || 1;
-  const n = data.length;
 
-  const x = (i: number) => (i / (n - 1)) * W;
+  const x = (i: number) => (n > 1 ? (i / (n - 1)) * W : W / 2);
   const y = (v: number) => padY + (1 - (v - min) / span) * (H - 2 * padY);
 
-  const line = data.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(d.value).toFixed(1)}`).join(" ");
+  const line = clean.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(d.value).toFixed(1)}`).join(" ");
   const area = `${line} L${W},${H} L0,${H} Z`;
   const grid = [0.0, 0.33, 0.66, 1.0];
 
@@ -93,22 +96,24 @@ export function AreaChart({
         />
 
         {/* end marker */}
-        <motion.circle
-          cx={x(n - 1)}
-          cy={y(values[n - 1])}
-          r="4"
-          fill="currentColor"
-          vectorEffect="non-scaling-stroke"
-          initial={{ scale: 0, opacity: 0 }}
-          whileInView={{ scale: 1, opacity: 1 }}
-          viewport={viewportOnce}
-          transition={{ duration: 0.5, ease: easeLux, delay: 1.5 }}
-        />
+        {n > 0 && (
+          <motion.circle
+            cx={x(n - 1)}
+            cy={y(values[n - 1])}
+            r="4"
+            fill="currentColor"
+            vectorEffect="non-scaling-stroke"
+            initial={{ scale: 0, opacity: 0 }}
+            whileInView={{ scale: 1, opacity: 1 }}
+            viewport={viewportOnce}
+            transition={{ duration: 0.5, ease: easeLux, delay: 1.5 }}
+          />
+        )}
       </svg>
 
       {showLabels && (
         <div className="mt-3 flex justify-between font-[family-name:var(--font-jetbrains)] text-[0.6rem] uppercase tracking-wider text-current opacity-45">
-          {data.map((d, i) => (
+          {clean.map((d, i) => (
             <span key={i} className={i % 2 === 1 ? "hidden sm:inline" : ""}>
               {d.month}
             </span>

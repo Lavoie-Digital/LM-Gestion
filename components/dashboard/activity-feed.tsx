@@ -32,7 +32,7 @@ export function ActivityFeed({
   return (
     <section
       id="activite"
-      className="flex h-full scroll-mt-24 flex-col rounded-[4px] border border-line bg-white"
+      className="flex h-fit scroll-mt-24 flex-col self-start rounded-[4px] border border-line bg-white"
     >
       <div className="flex items-center justify-between border-b border-line px-6 py-5">
         <h2 className="font-display text-xl tracking-tight">Activité récente</h2>
@@ -40,11 +40,11 @@ export function ActivityFeed({
       </div>
 
       {items.length === 0 && (
-        <p className="flex-1 px-6 py-10 text-center text-sm text-smoke">
+        <p className="px-6 py-10 text-center text-sm text-smoke">
           {emptyLabel ?? "Aucune activité pour l'instant."}
         </p>
       )}
-      <ul className="flex-1 divide-y divide-line-soft px-6">
+      <ul className="max-h-[26rem] divide-y divide-line-soft overflow-y-auto px-6">
         {items.map((a, i) => {
           const Icon = ICONS[a.type];
           return (

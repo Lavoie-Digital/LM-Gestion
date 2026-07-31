@@ -156,7 +156,7 @@ function LiveView({
 
   const monthLabel = (date: string) =>
     new Date(`${date}T12:00:00`).toLocaleDateString("fr-CA", { day: "numeric", month: "short" });
-  const revenueSeries = hist.map((s) => ({ month: monthLabel(s.date), value: Math.round(s.monthlyRevenueCents / 100) }));
+  const revenueSeries = hist.map((s) => ({ month: monthLabel(s.date), value: Math.round((s.monthlyRevenueCents ?? 0) / 100) }));
   const revFirst = hist[0]?.monthlyRevenueCents ?? 0;
   const revLast = hist[hist.length - 1]?.monthlyRevenueCents ?? 0;
   const revGrowthPct = revFirst ? ((revLast - revFirst) / revFirst) * 100 : 0;

@@ -59,35 +59,81 @@ export type ActivityItem = {
 
 /** Libellés FR des événements (le nom brut est en repli). */
 export const EVENT_LABELS: Record<string, string> = {
+  // Contacts / prospects
+  prospective_tenant_created: "Contact prospect créé",
+  prospective_tenant_modified: "Contact prospect modifié",
   prospect_contact_created: "Contact prospect créé",
   prospect_contact_modified: "Contact prospect modifié",
+  // Commentaires / notes
+  comment_created: "Commentaire ajouté",
+  comment_modified: "Commentaire modifié",
+  comment_deleted: "Commentaire supprimé",
+  note_created: "Note ajoutée",
+  note_deleted: "Note supprimée",
+  // Baux
   lease_created: "Bail créé",
   lease_renewed: "Bail renouvelé",
+  lease_modified: "Bail modifié",
+  lease_ended: "Bail terminé",
+  // Locataires
   tenant_confirmed: "Locataire confirmé",
   tenant_activated: "Locataire activé",
   tenant_deactivated: "Locataire désactivé",
   tenant_created: "Locataire créé",
   tenant_deleted: "Locataire supprimé",
   tenant_modified: "Locataire modifié",
+  // Demandes de service
   service_request_created: "Demande de service créée",
   service_request_modified: "Demande de service modifiée",
   service_request_closed: "Demande de service fermée",
   service_request_deleted: "Demande de service supprimée",
   service_request_note_created: "Note de demande créée",
   service_request_note_deleted: "Note de demande supprimée",
+  // Paiements
   payment_received: "Paiement reçu",
   payment_modified: "Paiement modifié",
   payment_failed: "Paiement échoué",
   payment_refunded: "Paiement remboursé",
   payment_deleted: "Paiement supprimé",
+  // Unités
   unit_vacancy_started: "Logement devenu vacant",
   unit_vacancy_ended: "Logement occupé",
   unit_occupied: "Logement occupé",
 };
 
+/** Repli en français lisible pour un type d'événement non mappé (jamais l'anglais brut). */
+function frenchFallback(eventType: string): string {
+  const t = eventType.toLowerCase();
+  const subject = t.includes("payment")
+    ? "Paiement"
+    : t.includes("lease")
+      ? "Bail"
+      : t.includes("tenant") || t.includes("prospect")
+        ? "Locataire"
+        : t.includes("unit") || t.includes("vacancy")
+          ? "Logement"
+          : t.includes("service")
+            ? "Demande de service"
+            : t.includes("comment") || t.includes("note")
+              ? "Note"
+              : t.includes("document")
+                ? "Document"
+                : "Activité";
+  const action = t.endsWith("created") || t.includes("_created")
+    ? "· nouveau"
+    : t.includes("modified") || t.includes("updated")
+      ? "· modifié"
+      : t.includes("deleted")
+        ? "· supprimé"
+        : t.includes("closed")
+          ? "· fermé"
+          : "";
+  return action ? `${subject} ${action}` : subject;
+}
+
 export function eventLabel(eventType?: string): string {
   if (!eventType) return "Événement";
-  return EVENT_LABELS[eventType] ?? eventType;
+  return EVENT_LABELS[eventType] ?? frenchFallback(eventType);
 }
 
 function str(v: unknown): string | undefined {
