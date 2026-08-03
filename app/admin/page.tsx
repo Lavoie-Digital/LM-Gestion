@@ -9,7 +9,7 @@ import { formatCAD } from "@/lib/utils";
 import { DocumentExplorer } from "@/components/admin/document-explorer";
 import { buildThreads, type NoteMeta } from "@/components/dashboard/notes";
 
-type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[]; unreadNotes?: number; manager?: string | null };
+type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[]; unreadNotes?: number; manager?: string | null; manual?: boolean };
 type Admins = { envAdmins: string[]; dbAdmins: { id: string; email: string }[] };
 
 const inputCls =
@@ -27,6 +27,7 @@ export default function AdminPage() {
   const [query, setQuery] = useState("");
   const [accessFilter, setAccessFilter] = useState<"all" | "with" | "without">("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [newClient, setNewClient] = useState("");
   const [emailInputs, setEmailInputs] = useState<Record<string, string>>({});
   const [newAdmin, setNewAdmin] = useState("");
   // Explorateur de documents (façon fichiers) ouvert pour ce sous-compte.
@@ -227,6 +228,26 @@ export default function AdminPage() {
       })
     );
 
+  const addManualClient = () => {
+    const name = newClient.trim();
+    if (!name) return;
+    run("add-client", () =>
+      authedFetch("/api/admin/manual-subaccounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+    ).then(() => setNewClient(""));
+  };
+  const removeManualClient = (name: string) =>
+    run(`rm-client-${name}`, () =>
+      authedFetch("/api/admin/manual-subaccounts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+    );
+
   if (loading || !user || !isAdmin) {
     return (
       <div className="flex min-h-[100svh] items-center justify-center bg-paper text-smoke">
@@ -371,6 +392,27 @@ export default function AdminPage() {
           />
         </div>
 
+        {/* Ajouter un client qui n'a pas (encore) d'unité dans PlexFlow */}
+        <form
+          onSubmit={(e) => { e.preventDefault(); addManualClient(); }}
+          className="mt-3 flex flex-wrap items-center gap-2 rounded-[3px] border border-dashed border-line bg-paper-2/30 p-3"
+        >
+          <span className="text-xs text-smoke">Client absent de la liste ?</span>
+          <input
+            className={`${inputCls} h-9 max-w-xs`}
+            placeholder="Nom exact du sous-compte PlexFlow"
+            value={newClient}
+            onChange={(e) => setNewClient(e.target.value)}
+          />
+          <button
+            type="submit"
+            disabled={!newClient.trim() || busy === "add-client"}
+            className="inline-flex h-9 items-center gap-1.5 rounded-[2px] bg-ink px-3.5 text-sm font-medium text-paper disabled:opacity-50"
+          >
+            {busy === "add-client" ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />} Ajouter le client
+          </button>
+        </form>
+
         {dataLoading ? (
           <div className="mt-10 flex justify-center text-smoke">
             <Loader2 className="size-5 animate-spin" />
@@ -384,6 +426,11 @@ export default function AdminPage() {
                     <p className="flex items-center gap-2 font-medium text-ink">
                       {r.emails.length > 0 && <Check className="size-4 text-green-600" />}
                       <span className="truncate">{r.name}</span>
+                      {r.manual && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-[0.6rem] uppercase tracking-wide text-smoke">
+                          ajouté manuellement
+                        </span>
+                      )}
                     </p>
                     <p className="mt-0.5 text-xs text-smoke">
                       {r.unitCount > 0
@@ -391,6 +438,16 @@ export default function AdminPage() {
                         : "Aucun logement dans le parc actuel"}
                     </p>
                   </div>
+                  {r.manual && (
+                    <button
+                      type="button"
+                      onClick={() => removeManualClient(r.name)}
+                      disabled={busy === `rm-client-${r.name}`}
+                      className="inline-flex items-center gap-1 text-xs text-smoke hover:text-red-600 disabled:opacity-50"
+                    >
+                      {busy === `rm-client-${r.name}` ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />} Retirer
+                    </button>
+                  )}
                 </div>
 
                 {/* Courriels associés */}
