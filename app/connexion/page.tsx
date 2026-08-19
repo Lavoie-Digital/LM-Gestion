@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, Loader2, Mail } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Mail } from "lucide-react";
 import { easeLux } from "@/lib/motion";
 import { Logo } from "@/components/site/logo";
 import { Button } from "@/components/ui/button";
@@ -276,6 +276,17 @@ export default function ConnexionPage() {
                   Accès réservé aux clients. Sans mot de passe : connectez-vous avec Google ou
                   recevez un lien — aucun compte à créer.
                 </p>
+
+                {/* Aperçu public du tableau de bord — argument de vente pour les prospects */}
+                <div className="mt-6 border-t border-line pt-6">
+                  <p className="text-center text-xs text-smoke">Pas encore client&nbsp;?</p>
+                  <Link
+                    href="/tableau-de-bord/demo"
+                    className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[2px] border border-ink text-sm font-medium text-ink transition-colors hover:bg-ink hover:text-paper"
+                  >
+                    Voir une démonstration du tableau de bord <ArrowRight className="size-4" />
+                  </Link>
+                </div>
               </>
             )}
           </motion.div>
