@@ -2,12 +2,13 @@
  * Journal en mémoire des webhooks PlexFlow reçus.
  *
  * Sert à INSPECTER les événements réels depuis la zone admin (au lieu de
- * fouiller les logs Render) → révèle le vrai nom du header de signature et la
- * structure du payload, ce que PlexFlow ne documente pas.
+ * fouiller les journaux du serveur) → révèle le vrai nom du header de signature
+ * et la structure du payload, ce que PlexFlow ne documente pas.
  *
- * ⚠️ En mémoire seulement : le journal se vide à chaque redéploiement Render
- * (process redémarré). Suffisant pour la phase de découverte ; une persistance
- * Firestore viendra avec le branchement complet.
+ * ⚠️ En mémoire seulement : le journal se vide à chaque redéploiement, et sur un
+ * hébergement multi-instances (Cloud Run / Firebase App Hosting) il n'est pas
+ * partagé entre instances. C'est un outil de découverte/débogage ; les vrais
+ * événements sont, eux, persistés dans Firestore (`plexflow_events`).
  * ------------------------------------------------------------------ */
 
 export type WebhookLogEntry = {

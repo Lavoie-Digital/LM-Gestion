@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------ *
  * Cron : libère les notes programmées échues et envoie leurs courriels.
- * À appeler périodiquement (Render Cron, cron-job.org…) toutes les ~5-15 min.
+ * À appeler périodiquement (Cloud Scheduler / Firebase, cron-job.org…) toutes les ~5-15 min.
  * Protégé par CRON_SECRET (header `x-cron-secret` ou ?secret=).
  * (Aussi déclenché de façon opportuniste à l'ouverture des notes.)
  * ------------------------------------------------------------------ */

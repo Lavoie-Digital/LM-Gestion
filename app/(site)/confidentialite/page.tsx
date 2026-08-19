@@ -142,7 +142,7 @@ export default function ConfidentialitePage() {
                   <li><strong className="text-ink">SendGrid (Twilio)</strong> — envoi des courriels (formulaire, notifications).</li>
                   <li><strong className="text-ink">PlexFlow</strong> — plateforme de gestion immobilière (données du parc).</li>
                   <li><strong className="text-ink">Anthropic (Claude)</strong> — assistance par intelligence artificielle (voir section 8).</li>
-                  <li><strong className="text-ink">Render</strong> — hébergement de l'application.</li>
+                  <li><strong className="text-ink">Firebase App Hosting (Google)</strong> — hébergement de l'application.</li>
                 </ul>
                 <p>
                   Nous ne communiquons vos renseignements à aucun autre tiers sans votre consentement,

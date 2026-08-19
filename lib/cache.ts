@@ -2,9 +2,10 @@
  * Cache mémoire simple avec TTL — pour la stratégie « lecture live + cache »
  * des données PlexFlow. Les webhooks invalident les entrées concernées.
  *
- * NOTE : en mémoire = par instance. Sur Render, le cache repart à zéro à
- * chaque déploiement et n'est pas partagé entre instances multiples. Suffisant
- * pour démarrer ; passer à Redis/DB si on scale horizontalement.
+ * NOTE : en mémoire = par instance. Le cache repart à zéro à chaque déploiement
+ * et n'est pas partagé entre instances multiples (ex. Cloud Run / Firebase App
+ * Hosting qui peut lancer plusieurs instances). Suffisant ici (TTL court + les
+ * webhooks invalident) ; passer à Redis/DB si on scale fortement.
  * ------------------------------------------------------------------ */
 
 type Entry = { value: unknown; expiresAt: number };

@@ -18,8 +18,8 @@ import type { PlexflowEvent } from "@/lib/plexflow-events";
  * cette route LOGUE le payload complet → on découvrira le format réel dès le
  * premier événement reçu (même approche empirique que pour le scraping).
  *
- * URL à donner à PlexFlow (sur Render) :
- *   https://<votre-app>.onrender.com/api/webhooks/plexflow
+ * URL à donner à PlexFlow (production) :
+ *   https://lmgestionimmobiliere.ca/api/webhooks/plexflow
  * ------------------------------------------------------------------ */
 
 export const dynamic = "force-dynamic";
