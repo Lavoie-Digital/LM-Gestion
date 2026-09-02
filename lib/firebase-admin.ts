@@ -71,3 +71,8 @@ export function adminBucket() {
   if (!STORAGE_BUCKET) throw new Error("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET manquant.");
   return getStorage(getNamedApp("lm-db", true)).bucket(STORAGE_BUCKET);
 }
+
+/** Auth serveur PRIVILÉGIÉE (génération de liens de connexion…). Requiert le compte de service. */
+export function adminAuthPrivileged(): Auth {
+  return getAuth(getNamedApp("lm-db", true));
+}

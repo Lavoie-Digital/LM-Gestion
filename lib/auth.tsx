@@ -5,7 +5,6 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signInWithEmailAndPassword,
-  sendSignInLinkToEmail,
   isSignInWithEmailLink,
   signInWithEmailLink,
   signOut as firebaseSignOut,
@@ -119,12 +118,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       sendLoginLink: async (email) => {
         const clean = email.trim().toLowerCase();
-        // Le courriel est aussi passé dans le lien (param `e`) → évite de le
-        // redemander si le lien est ouvert sur un autre appareil/navigateur.
-        await sendSignInLinkToEmail(getFirebaseAuth(), clean, {
-          url: `${window.location.origin}/connexion?e=${encodeURIComponent(clean)}`,
-          handleCodeInApp: true,
+        // On passe par NOTRE serveur : le lien est généré par l'Admin SDK et
+        // envoyé via SendGrid (domaine authentifié) → bien meilleure délivrabilité
+        // que l'envoi Firebase par défaut (souvent filtré par Hotmail/Outlook).
+        const res = await fetch("/api/auth/login-link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: clean, origin: window.location.origin }),
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Envoi du lien impossible.");
+        }
         window.localStorage.setItem(EMAIL_LINK_KEY, clean);
       },
       completeEmailLinkSignIn: async () => {
