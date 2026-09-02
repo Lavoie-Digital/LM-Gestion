@@ -9,7 +9,7 @@ import { ADMIN_EMAILS, verifyBearer } from "@/lib/access";
 import { subaccountsForOwnerEmail } from "@/lib/owners-admin";
 import { listDbAdmins } from "@/lib/admins";
 import { getManager } from "@/lib/managers";
-import { addNote, listNotes } from "@/lib/notes";
+import { addNote, attachFilesToNote, listNotes, readNoteFiles } from "@/lib/notes";
 import { releaseAndNotifyNotes } from "@/lib/note-mailer";
 import { brandedBody, escapeHtml, sendBrandedEmail } from "@/lib/email";
 
@@ -39,16 +39,29 @@ export async function POST(request: Request) {
   const id = await verifyBearer(request);
   if (!id) return Response.json({ error: "Non authentifié." }, { status: 401 });
 
-  let body: { body?: string; title?: string; parentId?: string };
+  // JSON (sans fichier) OU multipart/form-data (avec pièces jointes).
+  let text = "";
+  let title = "";
+  let parentId: string | null = null;
+  let files: { name: string; contentType: string; buffer: Buffer }[] = [];
+  const ct = request.headers.get("content-type") ?? "";
   try {
-    body = await request.json();
+    if (ct.includes("multipart/form-data")) {
+      const form = await request.formData();
+      text = String(form.get("body") ?? "").trim();
+      title = String(form.get("title") ?? "").trim();
+      parentId = String(form.get("parentId") ?? "").trim() || null;
+      files = await readNoteFiles(form);
+    } else {
+      const body = await request.json();
+      text = (body.body ?? "").trim();
+      title = (body.title ?? "").trim();
+      parentId = (body.parentId ?? "").trim() || null;
+    }
   } catch {
     return Response.json({ error: "Requête invalide." }, { status: 400 });
   }
-  const text = (body.body ?? "").trim();
-  const title = (body.title ?? "").trim();
-  const parentId = (body.parentId ?? "").trim() || null;
-  if (!text) return Response.json({ error: "La note est vide." }, { status: 400 });
+  if (!text && files.length === 0) return Response.json({ error: "La note est vide." }, { status: 400 });
 
   // Le client écrit depuis SON périmètre. On rattache la note à son sous-compte.
   const subs = await subaccountsForOwnerEmail(id.email);
@@ -59,6 +72,7 @@ export async function POST(request: Request) {
 
   try {
     const note = await addNote({ subaccount, title, body: text, from: "client", author: id.email, parentId });
+    if (files.length) await attachFilesToNote(note.id, files);
 
     // Destinataire(s) : le GESTIONNAIRE ASSIGNÉ à ce sous-compte s'il y en a un ;
     // sinon, repli sur les gestionnaires (admins base + boîte de contact), le
@@ -74,7 +88,8 @@ export async function POST(request: Request) {
         (e) => !ADMIN_EMAILS.includes(e)
       );
     }
-    const preview = text.length > 400 ? `${text.slice(0, 400)}…` : text;
+    const base = text || (files.length ? `${files.length} fichier(s) joint(s)` : "");
+    const preview = base.length > 400 ? `${base.slice(0, 400)}…` : base;
     const html = brandedBody({
       heading: "Nouveau message d'un client",
       paragraphs: [

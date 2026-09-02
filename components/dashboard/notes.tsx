@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { CornerDownRight, Loader2, Send, StickyNote } from "lucide-react";
+import { CornerDownRight, Download, Loader2, Paperclip, Send, StickyNote, X } from "lucide-react";
+
+export type NoteAttachment = { name: string; contentType: string; size: number; url?: string };
 
 export type NoteMeta = {
   id: string;
@@ -12,6 +14,7 @@ export type NoteMeta = {
   status?: "sent" | "scheduled";
   scheduledFor?: string | null;
   parentId?: string | null;
+  attachments?: NoteAttachment[];
   createdAt: string;
 };
 
@@ -35,11 +38,38 @@ export function buildThreads(notes: NoteMeta[]) {
       roots.push(n);
     }
   }
-  roots.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); // fil le plus récent en premier
+  roots.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return roots.map((root) => ({
     root,
     replies: (repliesByRoot.get(root.id) ?? []).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
   }));
+}
+
+function Attachments({ items }: { items?: NoteAttachment[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {items.map((a, i) =>
+        a.url ? (
+          <a
+            key={i}
+            href={a.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-white px-2.5 py-1 text-xs text-ink hover:border-ink"
+          >
+            <Paperclip className="size-3 shrink-0" />
+            <span className="truncate">{a.name}</span>
+            <Download className="size-3 shrink-0 text-smoke" />
+          </a>
+        ) : (
+          <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-smoke">
+            <Paperclip className="size-3" /> {a.name}
+          </span>
+        )
+      )}
+    </div>
+  );
 }
 
 function Bubble({ n }: { n: NoteMeta }) {
@@ -52,9 +82,38 @@ function Bubble({ n }: { n: NoteMeta }) {
       <div className="min-w-0 flex-1">
         <p className="text-[0.7rem] font-medium uppercase tracking-wide text-smoke/70">{mine ? "Vous" : "Votre gestionnaire"}</p>
         {n.title && <p className="mt-0.5 font-medium text-ink">{n.title}</p>}
-        <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-smoke">{n.body}</p>
+        {n.body && <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-smoke">{n.body}</p>}
+        <Attachments items={n.attachments} />
         <p className="mt-1 text-[0.7rem] uppercase tracking-wide text-smoke/60">{fmtDate(n.createdAt)}</p>
       </div>
+    </div>
+  );
+}
+
+/** Sélecteur de fichiers réutilisable (bouton trombone + pastilles). */
+export function FilePicker({ files, setFiles }: { files: File[]; setFiles: (f: File[]) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-[2px] border border-line px-2.5 py-1.5 text-xs text-ink hover:bg-paper-2">
+        <Paperclip className="size-3.5" /> Joindre
+        <input
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            setFiles([...files, ...Array.from(e.target.files ?? [])]);
+            e.target.value = "";
+          }}
+        />
+      </label>
+      {files.map((f, i) => (
+        <span key={i} className="inline-flex items-center gap-1 rounded-full bg-paper-2 px-2.5 py-1 text-xs text-ink">
+          {f.name}
+          <button type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))} className="text-smoke hover:text-red-600" aria-label="Retirer">
+            <X className="size-3" />
+          </button>
+        </span>
+      ))}
     </div>
   );
 }
@@ -64,26 +123,29 @@ export function NotesSection({
   onSend,
 }: {
   notes: NoteMeta[];
-  /** onSend(texte, parentId?) — parentId présent = réponse dans un fil existant. */
-  onSend?: (text: string, parentId?: string) => Promise<void>;
+  /** onSend(texte, parentId?, fichiers?) — parentId présent = réponse dans un fil. */
+  onSend?: (text: string, parentId?: string, files?: File[]) => Promise<void>;
 }) {
   const [text, setText] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replyOpen, setReplyOpen] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [replyBusy, setReplyBusy] = useState(false);
 
   const threads = buildThreads(notes);
 
   async function submitNew(e: React.FormEvent) {
     e.preventDefault();
-    if (!onSend || !text.trim() || sending) return;
+    if (!onSend || (!text.trim() && files.length === 0) || sending) return;
     setSending(true);
     setError(null);
     try {
-      await onSend(text.trim());
+      await onSend(text.trim(), undefined, files);
       setText("");
+      setFiles([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Envoi impossible.");
     } finally {
@@ -92,12 +154,13 @@ export function NotesSection({
   }
 
   async function submitReply(rootId: string) {
-    if (!onSend || !replyText.trim() || replyBusy) return;
+    if (!onSend || (!replyText.trim() && replyFiles.length === 0) || replyBusy) return;
     setReplyBusy(true);
     setError(null);
     try {
-      await onSend(replyText.trim(), rootId);
+      await onSend(replyText.trim(), rootId, replyFiles);
       setReplyText("");
+      setReplyFiles([]);
       setReplyOpen(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Envoi impossible.");
@@ -116,7 +179,6 @@ export function NotesSection({
         {notes.length > 0 && <span className="mono text-[0.6rem] uppercase tracking-[0.16em] text-smoke">{threads.length} sujet{threads.length > 1 ? "s" : ""}</span>}
       </div>
 
-      {/* Nouveau sujet */}
       {onSend && (
         <form onSubmit={submitNew} className="mt-5">
           <textarea
@@ -127,9 +189,12 @@ export function NotesSection({
             className="w-full rounded-[2px] border border-line bg-white px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
           />
           {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-          <button type="submit" disabled={sending || !text.trim()} className="mt-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-[2px] bg-ink px-3.5 text-sm font-medium text-paper disabled:opacity-50">
-            {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Envoyer
-          </button>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button type="submit" disabled={sending || (!text.trim() && files.length === 0)} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[2px] bg-ink px-3.5 text-sm font-medium text-paper disabled:opacity-50">
+              {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Envoyer
+            </button>
+            <FilePicker files={files} setFiles={setFiles} />
+          </div>
         </form>
       )}
 
@@ -163,17 +228,18 @@ export function NotesSection({
                         placeholder="Votre réponse…"
                         className="w-full rounded-[2px] border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink"
                       />
+                      <FilePicker files={replyFiles} setFiles={setReplyFiles} />
                       <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => submitReply(root.id)} disabled={replyBusy || !replyText.trim()} className="inline-flex h-8 items-center gap-1.5 rounded-[2px] bg-ink px-3 text-xs font-medium text-paper disabled:opacity-50">
+                        <button type="button" onClick={() => submitReply(root.id)} disabled={replyBusy || (!replyText.trim() && replyFiles.length === 0)} className="inline-flex h-8 items-center gap-1.5 rounded-[2px] bg-ink px-3 text-xs font-medium text-paper disabled:opacity-50">
                           {replyBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} Répondre
                         </button>
-                        <button type="button" onClick={() => { setReplyOpen(null); setReplyText(""); }} className="text-xs text-smoke hover:text-ink">
+                        <button type="button" onClick={() => { setReplyOpen(null); setReplyText(""); setReplyFiles([]); }} className="text-xs text-smoke hover:text-ink">
                           Annuler
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => { setReplyOpen(root.id); setReplyText(""); }} className="inline-flex items-center gap-1.5 text-xs text-smoke hover:text-ink">
+                    <button type="button" onClick={() => { setReplyOpen(root.id); setReplyText(""); setReplyFiles([]); }} className="inline-flex items-center gap-1.5 text-xs text-smoke hover:text-ink">
                       <CornerDownRight className="size-3.5" /> Répondre
                     </button>
                   )}

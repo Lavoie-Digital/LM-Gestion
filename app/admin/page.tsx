@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Clock, CornerDownRight, FolderOpen, Loader2, LogOut, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Clock, CornerDownRight, FolderOpen, Loader2, LogOut, Paperclip, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatCAD } from "@/lib/utils";
 import { DocumentExplorer } from "@/components/admin/document-explorer";
-import { buildThreads, type NoteMeta } from "@/components/dashboard/notes";
+import { buildThreads, FilePicker, type NoteMeta } from "@/components/dashboard/notes";
 
 type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[]; unreadNotes?: number; manager?: string | null; manual?: boolean };
 type Admins = { envAdmins: string[]; dbAdmins: { id: string; email: string }[] };
@@ -36,9 +36,11 @@ export default function AdminPage() {
   const [openNotes, setOpenNotes] = useState<string | null>(null);
   const [notesBySub, setNotesBySub] = useState<Record<string, NoteMeta[]>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, { title: string; body: string; scheduledFor: string }>>({});
+  const [noteFiles, setNoteFiles] = useState<Record<string, File[]>>({});
   const [sendingNote, setSendingNote] = useState<string | null>(null);
   const [replyOpen, setReplyOpen] = useState<string | null>(null); // id de la note racine
   const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyFiles, setReplyFiles] = useState<Record<string, File[]>>({});
   const [replyBusy, setReplyBusy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -148,9 +150,10 @@ export default function AdminPage() {
 
   async function sendNote(name: string) {
     const draft = noteDrafts[name] ?? { title: "", body: "", scheduledFor: "" };
-    if (!draft.body.trim()) return;
+    const attach = noteFiles[name] ?? [];
+    if (!draft.body.trim() && attach.length === 0) return;
     // datetime-local (heure locale) → ISO UTC pour comparaison serveur.
-    let scheduledFor: string | null = null;
+    let scheduledFor = "";
     if (draft.scheduledFor) {
       const d = new Date(draft.scheduledFor);
       if (!Number.isNaN(d.getTime())) scheduledFor = d.toISOString();
@@ -158,13 +161,18 @@ export default function AdminPage() {
     setSendingNote(name);
     setError(null);
     try {
-      const res = await authedFetch("/api/admin/notes", {
-        method: "POST",
-        body: JSON.stringify({ subaccount: name, title: draft.title, body: draft.body, scheduledFor }),
-      });
+      const token = await user!.getIdToken();
+      const fd = new FormData();
+      fd.append("subaccount", name);
+      fd.append("title", draft.title);
+      fd.append("body", draft.body);
+      if (scheduledFor) fd.append("scheduledFor", scheduledFor);
+      attach.forEach((f) => fd.append("files", f));
+      const res = await fetch("/api/admin/notes", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Envoi impossible.");
       setNoteDrafts((m) => ({ ...m, [name]: { title: "", body: "", scheduledFor: "" } }));
+      setNoteFiles((m) => ({ ...m, [name]: [] }));
       await loadNotes(name);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Envoi impossible.");
@@ -182,16 +190,21 @@ export default function AdminPage() {
 
   async function replyNote(name: string, rootId: string) {
     const text = (replyDraft[rootId] ?? "").trim();
-    if (!text) return;
+    const attach = replyFiles[rootId] ?? [];
+    if (!text && attach.length === 0) return;
     setReplyBusy(rootId);
     setError(null);
     try {
-      const res = await authedFetch("/api/admin/notes", {
-        method: "POST",
-        body: JSON.stringify({ subaccount: name, body: text, parentId: rootId }),
-      });
+      const token = await user!.getIdToken();
+      const fd = new FormData();
+      fd.append("subaccount", name);
+      fd.append("body", text);
+      fd.append("parentId", rootId);
+      attach.forEach((f) => fd.append("files", f));
+      const res = await fetch("/api/admin/notes", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Réponse impossible.");
       setReplyDraft((m) => ({ ...m, [rootId]: "" }));
+      setReplyFiles((m) => ({ ...m, [rootId]: [] }));
       setReplyOpen(null);
       await loadNotes(name);
     } catch (e) {
@@ -579,6 +592,7 @@ export default function AdminPage() {
                             </button>
                           )}
                         </div>
+                        <FilePicker files={noteFiles[r.name] ?? []} setFiles={(f) => setNoteFiles((m) => ({ ...m, [r.name]: f }))} />
                         <button
                           type="submit"
                           disabled={sendingNote === r.name}
@@ -604,7 +618,20 @@ export default function AdminPage() {
                                     {n.from === "client" ? `Client${n.author ? ` · ${n.author}` : ""}` : "Gestionnaire"}
                                   </p>
                                   {n.title && <p className="font-medium text-ink">{n.title}</p>}
-                                  <p className="whitespace-pre-wrap break-words text-smoke">{n.body}</p>
+                                  {n.body && <p className="whitespace-pre-wrap break-words text-smoke">{n.body}</p>}
+                                  {n.attachments && n.attachments.length > 0 && (
+                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                      {n.attachments.map((a, i) =>
+                                        a.url ? (
+                                          <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-[0.7rem] text-ink hover:border-ink">
+                                            <Paperclip className="size-3 shrink-0" /> <span className="truncate">{a.name}</span>
+                                          </a>
+                                        ) : (
+                                          <span key={i} className="inline-flex items-center gap-1 text-[0.7rem] text-smoke"><Paperclip className="size-3" /> {a.name}</span>
+                                        )
+                                      )}
+                                    </div>
+                                  )}
                                   <p className="mt-1 text-[0.7rem] uppercase tracking-wide text-smoke/60">
                                     {new Date(n.createdAt).toLocaleString("fr-CA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                                   </p>
@@ -634,8 +661,9 @@ export default function AdminPage() {
                                       placeholder="Votre réponse au client…"
                                       className="w-full rounded-[2px] border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink"
                                     />
+                                    <FilePicker files={replyFiles[root.id] ?? []} setFiles={(f) => setReplyFiles((m) => ({ ...m, [root.id]: f }))} />
                                     <div className="flex items-center gap-2">
-                                      <button type="button" onClick={() => replyNote(r.name, root.id)} disabled={replyBusy === root.id || !(replyDraft[root.id] ?? "").trim()} className="inline-flex h-8 items-center gap-1.5 rounded-[2px] bg-ink px-3 text-xs font-medium text-paper disabled:opacity-50">
+                                      <button type="button" onClick={() => replyNote(r.name, root.id)} disabled={replyBusy === root.id || (!(replyDraft[root.id] ?? "").trim() && (replyFiles[root.id]?.length ?? 0) === 0)} className="inline-flex h-8 items-center gap-1.5 rounded-[2px] bg-ink px-3 text-xs font-medium text-paper disabled:opacity-50">
                                         {replyBusy === root.id ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} Répondre
                                       </button>
                                       <button type="button" onClick={() => setReplyOpen(null)} className="text-xs text-smoke hover:text-ink">Annuler</button>

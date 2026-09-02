@@ -5,10 +5,14 @@
  * ------------------------------------------------------------------ */
 
 import { FieldValue } from "firebase-admin/firestore";
-import { adminConfigured, adminDb } from "./firebase-admin";
+import { adminBucket, adminConfigured, adminDb } from "./firebase-admin";
 
 export type NoteFrom = "manager" | "client";
 export type NoteStatus = "sent" | "scheduled";
+
+/** Pièce jointe stockée (métadonnées ; url signée générée à la lecture). */
+export type NoteAttachmentStored = { name: string; storagePath: string; contentType: string; size: number };
+export type NoteAttachment = { name: string; contentType: string; size: number; url?: string };
 
 export type NoteMeta = {
   id: string;
@@ -20,8 +24,44 @@ export type NoteMeta = {
   status: NoteStatus;
   scheduledFor?: string | null; // ISO — si programmé
   parentId?: string | null; // null = début d'un fil (sujet) ; sinon = réponse
+  attachments?: NoteAttachment[];
   createdAt: string; // ISO
 };
+
+function safeName(name: string): string {
+  return name.replace(/[^\w.\- ]+/g, "_").slice(0, 120) || "fichier";
+}
+
+/** Extrait les fichiers d'un FormData (champ `files`), en ignorant les vides / trop gros (>15 Mo). */
+export async function readNoteFiles(form: FormData, field = "files"): Promise<{ name: string; contentType: string; buffer: Buffer }[]> {
+  const out: { name: string; contentType: string; buffer: Buffer }[] = [];
+  for (const f of form.getAll(field)) {
+    if (f instanceof File && f.size > 0 && f.size <= 15 * 1024 * 1024) {
+      out.push({ name: f.name || "fichier", contentType: f.type || "application/octet-stream", buffer: Buffer.from(await f.arrayBuffer()) });
+    }
+  }
+  return out;
+}
+
+/** Téléverse des pièces jointes dans une note (Storage) + met à jour le doc. */
+export async function attachFilesToNote(
+  noteId: string,
+  files: { name: string; contentType: string; buffer: Buffer }[]
+): Promise<void> {
+  if (!files.length) return;
+  const bucket = adminBucket();
+  const metas: NoteAttachmentStored[] = [];
+  for (const f of files) {
+    const path = `note-attachments/${noteId}/${Date.now()}-${safeName(f.name)}`;
+    await bucket.file(path).save(f.buffer, {
+      resumable: false,
+      contentType: f.contentType || "application/octet-stream",
+      metadata: { contentType: f.contentType || "application/octet-stream" },
+    });
+    metas.push({ name: f.name, storagePath: path, contentType: f.contentType || "application/octet-stream", size: f.buffer.length });
+  }
+  await adminDb().collection("notes").doc(noteId).set({ attachments: FieldValue.arrayUnion(...metas) }, { merge: true });
+}
 
 export async function addNote(input: {
   subaccount: string;
@@ -136,9 +176,23 @@ export async function listNotes(
   } else {
     docs = (await db.collection("notes").where("subaccount", "in", subaccounts.slice(0, 30)).get()).docs;
   }
-  return docs
-    .map((d) => {
+  const mapped = await Promise.all(
+    docs.map(async (d) => {
       const x = d.data();
+      // Pièces jointes → URL signées temporaires (15 min).
+      const rawAtt = Array.isArray(x.attachments) ? (x.attachments as NoteAttachmentStored[]) : [];
+      const attachments: NoteAttachment[] = await Promise.all(
+        rawAtt.map(async (a) => {
+          let url: string | undefined;
+          try {
+            const [signed] = await adminBucket().file(a.storagePath).getSignedUrl({ action: "read", expires: Date.now() + 15 * 60 * 1000 });
+            url = signed;
+          } catch {
+            url = undefined;
+          }
+          return { name: a.name, contentType: a.contentType, size: a.size, url };
+        })
+      );
       return {
         id: d.id,
         subaccount: String(x.subaccount ?? ""),
@@ -149,14 +203,23 @@ export async function listNotes(
         status: x.status === "scheduled" ? "scheduled" : "sent",
         scheduledFor: typeof x.scheduledFor === "string" ? x.scheduledFor : null,
         parentId: typeof x.parentId === "string" ? x.parentId : null,
+        attachments,
         createdAt: String(x.createdAt ?? ""),
       } satisfies NoteMeta;
     })
+  );
+  return mapped
     // Le client ne voit jamais les notes programmées (non encore envoyées).
     .filter((n) => (opts?.onlySent ? n.status === "sent" : true))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function deleteNote(id: string): Promise<void> {
-  await adminDb().collection("notes").doc(id).delete();
+  const ref = adminDb().collection("notes").doc(id);
+  const snap = await ref.get();
+  const atts = snap.exists && Array.isArray(snap.get("attachments")) ? (snap.get("attachments") as NoteAttachmentStored[]) : [];
+  for (const a of atts) {
+    if (a.storagePath) await adminBucket().file(a.storagePath).delete().catch(() => {});
+  }
+  await ref.delete();
 }

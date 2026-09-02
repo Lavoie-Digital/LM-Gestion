@@ -118,7 +118,7 @@ function LiveView({
   notes: NoteMeta[];
   viewAs: string;
   onViewAsChange: (v: string) => void;
-  onSendNote?: (text: string, parentId?: string) => Promise<void>;
+  onSendNote?: (text: string, parentId?: string, files?: File[]) => Promise<void>;
 }) {
   const k = data.kpis!;
   const byBuilding = data.byBuilding ?? [];
@@ -331,16 +331,22 @@ export default function DashboardPage() {
   }, [user, viewAs]);
 
   const sendNote = useCallback(
-    async (text: string, parentId?: string) => {
+    async (text: string, parentId?: string, files?: File[]) => {
       if (!user) return;
       const token = await user.getIdToken();
-      const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-      // Client → /api/notes (from client). Admin en « Voir en tant que » →
-      // /api/admin/notes (réponse du gestionnaire au sous-compte prévisualisé).
-      const res =
-        isAdmin && viewAs
-          ? await fetch("/api/admin/notes", { method: "POST", headers, body: JSON.stringify({ subaccount: viewAs, body: text, parentId }) })
-          : await fetch("/api/notes", { method: "POST", headers, body: JSON.stringify({ body: text, parentId }) });
+      // Multipart (supporte les pièces jointes). Admin en « Voir en tant que »
+      // → /api/admin/notes (note du gestionnaire) ; sinon → /api/notes (client).
+      const adminScope = isAdmin && viewAs;
+      const fd = new FormData();
+      fd.append("body", text);
+      if (parentId) fd.append("parentId", parentId);
+      if (adminScope) fd.append("subaccount", viewAs);
+      (files ?? []).forEach((f) => fd.append("files", f));
+      const res = await fetch(adminScope ? "/api/admin/notes" : "/api/notes", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Envoi impossible.");
       await load();
