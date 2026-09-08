@@ -7,6 +7,9 @@ import {
   signInWithEmailAndPassword,
   isSignInWithEmailLink,
   signInWithEmailLink,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
@@ -37,12 +40,20 @@ type AuthContextValue = {
   configured: boolean;
   isAllowed: boolean;
   isAdmin: boolean;
+  /** Vrai si le client s'est connecté avec un mot de passe temporaire et doit en choisir un. */
+  mustChangePassword: boolean;
+  /** Vrai si le compte possède le fournisseur « mot de passe » (peut donc en changer). */
+  hasPasswordProvider: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   /** Envoie un lien de connexion sans mot de passe (crée le compte au 1er clic). */
   sendLoginLink: (email: string) => Promise<void>;
   /** À l'ouverture d'un lien magique : termine la connexion. Renvoie true si traité. */
   completeEmailLinkSignIn: () => Promise<boolean>;
+  /** Choisit un nouveau mot de passe et lève l'obligation `mustChangePassword`. */
+  changePassword: (newPassword: string) => Promise<void>;
+  /** Change son mot de passe depuis le profil (ré-authentification avec l'actuel). */
+  updateOwnPassword: (currentPassword: string, newPassword: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -56,6 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Accès déterminé côté serveur (/api/access) : admin OU propriétaire lié.
   // null = pas encore résolu (tant qu'un utilisateur est connecté).
   const [access, setAccess] = useState<{ allowed: boolean; isAdmin: boolean } | null>(null);
+  // Mot de passe temporaire imposé par un admin : le client doit choisir le sien.
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const configured = firebaseConfigured();
 
   useEffect(() => {
@@ -75,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     if (!user) {
       setAccess(null);
+      setMustChangePassword(false);
       return;
     }
     setAccess(null);
@@ -84,6 +98,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         allowed: Boolean(email && ALLOWED_EMAILS.includes(email)),
         isAdmin: Boolean(email && ADMIN_EMAILS.includes(email)),
       };
+      // Revendication posée par un admin lorsqu'un mot de passe temporaire a été défini.
+      user
+        .getIdTokenResult()
+        .then((r) => {
+          if (!cancelled) setMustChangePassword(r.claims.mustChangePassword === true);
+        })
+        .catch(() => {});
       try {
         const token = await user.getIdToken();
         const res = await fetch("/api/access", { headers: { Authorization: `Bearer ${token}` } });
@@ -110,6 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured,
       isAllowed: access?.allowed ?? false,
       isAdmin: access?.isAdmin ?? false,
+      mustChangePassword,
+      hasPasswordProvider: Boolean(
+        user?.providerData.some((p) => p.providerId === EmailAuthProvider.PROVIDER_ID)
+      ),
       signInWithGoogle: async () => {
         await signInWithPopup(getFirebaseAuth(), googleProvider);
       },
@@ -149,11 +174,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return true;
       },
+      changePassword: async (newPassword) => {
+        const current = getFirebaseAuth().currentUser;
+        if (!current) throw new Error("Aucune session active.");
+        await updatePassword(current, newPassword);
+        // Lève l'obligation côté serveur (retire la revendication) puis rafraîchit le jeton.
+        try {
+          const token = await current.getIdToken();
+          await fetch("/api/auth/password-changed", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        } catch {
+          /* la revendication sera de toute façon rafraîchie ci-dessous */
+        }
+        await current.getIdToken(true);
+        const r = await current.getIdTokenResult();
+        setMustChangePassword(r.claims.mustChangePassword === true);
+      },
+      updateOwnPassword: async (currentPassword, newPassword) => {
+        const current = getFirebaseAuth().currentUser;
+        if (!current?.email) throw new Error("Aucune session active.");
+        // Ré-authentification requise par Firebase avant de changer le mot de passe.
+        const cred = EmailAuthProvider.credential(current.email, currentPassword);
+        await reauthenticateWithCredential(current, cred);
+        await updatePassword(current, newPassword);
+      },
       signOut: async () => {
         await firebaseSignOut(getFirebaseAuth());
       },
     }),
-    [user, authLoading, access, configured]
+    [user, authLoading, access, configured, mustChangePassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

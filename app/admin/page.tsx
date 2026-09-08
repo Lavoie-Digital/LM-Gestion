@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Clock, CornerDownRight, FolderOpen, Loader2, LogOut, Paperclip, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Clock, CornerDownRight, FolderOpen, KeyRound, Loader2, LogOut, Paperclip, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatCAD } from "@/lib/utils";
 import { DocumentExplorer } from "@/components/admin/document-explorer";
@@ -111,6 +111,41 @@ export default function AdminPage() {
     run(`unlink-${name}-${email}`, () =>
       authedFetch("/api/admin/owners", { method: "DELETE", body: JSON.stringify({ subaccount: name, email }) })
     );
+
+  // Définit un mot de passe TEMPORAIRE (repli quand le lien de connexion n'arrive
+  // pas). Le client devra en choisir un à sa 1re connexion (mustChangePassword).
+  async function setPassword(email: string) {
+    const pw = window.prompt(
+      `Mot de passe temporaire pour ${email} :\n\n` +
+        `Communiquez-le au client (téléphone/SMS). Il devra choisir son propre mot de passe à sa première connexion.`,
+      "Lmgestion123"
+    );
+    if (pw === null) return;
+    const password = pw.trim();
+    if (password.length < 6) {
+      window.alert("Le mot de passe doit contenir au moins 6 caractères.");
+      return;
+    }
+    setBusy(`pw-${email}`);
+    setError(null);
+    try {
+      const res = await authedFetch("/api/admin/set-password", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Opération impossible.");
+      window.alert(
+        `Mot de passe défini pour ${email}.\n\n` +
+          `Dites au client d'aller sur la page de connexion → « Autre option de connexion », ` +
+          `d'entrer son courriel et ce mot de passe. Il choisira ensuite le sien.`
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Opération impossible.");
+    } finally {
+      setBusy(null);
+    }
+  }
   const addAdmin = () => {
     const email = newAdmin.trim();
     if (!email) return;
@@ -469,6 +504,16 @@ export default function AdminPage() {
                     {r.emails.map((e) => (
                       <span key={e} className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs text-green-800">
                         {e}
+                        <button
+                          type="button"
+                          onClick={() => setPassword(e)}
+                          disabled={busy === `pw-${e}`}
+                          className="text-green-700/70 hover:text-ink disabled:opacity-50"
+                          title="Définir un mot de passe temporaire (repli si le lien de connexion n'arrive pas)"
+                          aria-label="Définir un mot de passe"
+                        >
+                          {busy === `pw-${e}` ? <Loader2 className="size-3 animate-spin" /> : <KeyRound className="size-3" />}
+                        </button>
                         <button
                           type="button"
                           onClick={() => unlinkEmail(r.name, e)}

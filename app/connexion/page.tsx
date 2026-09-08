@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, ArrowRight, Loader2, Mail } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Lock, Mail } from "lucide-react";
 import { easeLux } from "@/lib/motion";
 import { Logo } from "@/components/site/logo";
 import { Button } from "@/components/ui/button";
@@ -45,11 +45,14 @@ export default function ConnexionPage() {
     configured,
     isAllowed,
     signInWithGoogle,
+    signInWithEmail,
     sendLoginLink,
     completeEmailLinkSignIn,
     signOut,
   } = useAuth();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"link" | "password">("link");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linkSent, setLinkSent] = useState(false);
@@ -75,6 +78,21 @@ export default function ConnexionPage() {
     try {
       await sendLoginLink(email);
       setLinkSent(true);
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signInPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy || !email.trim() || !password) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await signInWithEmail(email, password);
+      // La redirection est gérée par l'effet ci-dessus (user + isAllowed).
     } catch (err) {
       setError(authErrorMessage(err));
     } finally {
@@ -232,6 +250,62 @@ export default function ConnexionPage() {
                       Utiliser un autre courriel
                     </button>
                   </div>
+                ) : mode === "password" ? (
+                  <form onSubmit={signInPassword} className="flex flex-col gap-5">
+                    <div>
+                      <label htmlFor="email" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
+                        Courriel
+                      </label>
+                      <div className="relative">
+                        <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
+                        <input
+                          id="email"
+                          type="email"
+                          autoComplete="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="vous@exemple.com"
+                          className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="password" className="mb-2 block text-xs font-medium uppercase tracking-wider text-smoke">
+                        Mot de passe
+                      </label>
+                      <div className="relative">
+                        <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-smoke" />
+                        <input
+                          id="password"
+                          type="password"
+                          autoComplete="current-password"
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Votre mot de passe"
+                          className="h-12 w-full rounded-[2px] border border-line bg-white pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
+                        />
+                      </div>
+                    </div>
+
+                    {error && (
+                      <p className="rounded-[2px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {error}
+                      </p>
+                    )}
+
+                    <Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
+                      {busy ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" />
+                          Connexion…
+                        </>
+                      ) : (
+                        "Se connecter"
+                      )}
+                    </Button>
+                  </form>
                 ) : (
                   <form onSubmit={sendLink} className="flex flex-col gap-5">
                     <div>
@@ -272,9 +346,25 @@ export default function ConnexionPage() {
                   </form>
                 )}
 
+                {!linkSent && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setPassword("");
+                      setMode((m) => (m === "password" ? "link" : "password"));
+                    }}
+                    className="mt-4 w-full text-center text-xs text-smoke underline-offset-4 hover:text-ink hover:underline"
+                  >
+                    {mode === "password"
+                      ? "Recevoir plutôt un lien de connexion par courriel"
+                      : "Autre option de connexion (courriel et mot de passe)"}
+                  </button>
+                )}
+
                 <p className="mt-6 text-center text-xs leading-relaxed text-smoke">
-                  Accès réservé aux clients. Sans mot de passe : connectez-vous avec Google ou
-                  recevez un lien — aucun compte à créer.
+                  Accès réservé aux clients. Connectez-vous avec Google, un lien par courriel, ou
+                  votre mot de passe.
                 </p>
 
                 {/* Aperçu public du tableau de bord — argument de vente pour les prospects */}

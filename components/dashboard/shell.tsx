@@ -23,6 +23,9 @@ import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { easeLux } from "@/lib/motion";
 import { Logo } from "@/components/site/logo";
+import { ProfileSettings } from "@/components/dashboard/profile-settings";
+
+const SETTINGS_HREF = "#parametres";
 
 const NAV = [
   { label: "Tableau de bord", href: "#apercu", icon: LayoutDashboard },
@@ -31,7 +34,7 @@ const NAV = [
   { label: "Activité", href: "#activite", icon: Activity },
   { label: "Documents", href: "#documents", icon: FileText },
   { label: "Notes", href: "#notes", icon: StickyNote },
-  { label: "Paramètres", href: "#", icon: Settings },
+  { label: "Paramètres", href: SETTINGS_HREF, icon: Settings },
 ];
 
 function NavList({
@@ -45,18 +48,21 @@ function NavList({
     <nav className="flex flex-col gap-1">
       {NAV.map((item) => {
         const isActive = item.href === active;
+        const cls = cn(
+          "group flex items-center gap-3 rounded-[3px] px-3.5 py-2.5 text-sm transition-colors",
+          isActive ? "bg-paper text-ink" : "text-ash hover:bg-paper/10 hover:text-paper"
+        );
+        // « Paramètres » ouvre un panneau plutôt que de naviguer vers une ancre.
+        if (item.href === SETTINGS_HREF) {
+          return (
+            <button key={item.label} type="button" onClick={() => onSelect(item.href)} className={cn(cls, "w-full text-left")}>
+              <item.icon className="size-[1.05rem]" strokeWidth={1.6} />
+              {item.label}
+            </button>
+          );
+        }
         return (
-          <Link
-            key={item.label}
-            href={item.href}
-            onClick={() => onSelect(item.href)}
-            className={cn(
-              "group flex items-center gap-3 rounded-[3px] px-3.5 py-2.5 text-sm transition-colors",
-              isActive
-                ? "bg-paper text-ink"
-                : "text-ash hover:bg-paper/10 hover:text-paper"
-            )}
-          >
+          <Link key={item.label} href={item.href} onClick={() => onSelect(item.href)} className={cls}>
             <item.icon className="size-[1.05rem]" strokeWidth={1.6} />
             {item.label}
           </Link>
@@ -269,6 +275,7 @@ export function DashboardShell({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [active, setActive] = useState("#apercu");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -278,8 +285,12 @@ export function DashboardShell({
   }, [mobileOpen]);
 
   const select = (href: string) => {
-    if (href !== "#") setActive(href);
     setMobileOpen(false);
+    if (href === SETTINGS_HREF) {
+      setSettingsOpen(true);
+      return;
+    }
+    setActive(href);
   };
 
   return (
@@ -373,6 +384,8 @@ export function DashboardShell({
 
         <main className="px-5 py-6 md:px-8 md:py-9">{children}</main>
       </div>
+
+      <ProfileSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

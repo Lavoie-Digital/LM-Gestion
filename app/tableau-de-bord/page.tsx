@@ -13,6 +13,7 @@ import { ActivityFeed, type FeedItem } from "@/components/dashboard/activity-fee
 import { BuildingDetail } from "@/components/dashboard/building-detail";
 import { DocumentsSection, type DocMeta } from "@/components/dashboard/documents";
 import { NotesSection, type NoteMeta } from "@/components/dashboard/notes";
+import { ForcePasswordChange } from "@/components/dashboard/force-password-change";
 import { DemoView } from "@/components/dashboard/demo-view";
 import { AiAnalysis } from "@/components/dashboard/ai-analysis";
 import { AreaChart } from "@/components/charts/area-chart";
@@ -296,7 +297,7 @@ function LiveView({
  * ------------------------------------------------------------------ */
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loading, isAllowed, isAdmin, configured } = useAuth();
+  const { user, loading, isAllowed, isAdmin, configured, mustChangePassword, changePassword } = useAuth();
   const [data, setData] = useState<DashResponse | null>(null);
   const [docs, setDocs] = useState<DocMeta[]>([]);
   const [notes, setNotes] = useState<NoteMeta[]>([]);
@@ -367,6 +368,11 @@ export default function DashboardPage() {
         <Loader2 className="size-6 animate-spin" />
       </div>
     );
+  }
+
+  // Mot de passe temporaire → on bloque l'accès tant qu'il n'est pas remplacé.
+  if (mustChangePassword) {
+    return <ForcePasswordChange email={user.email ?? ""} onSubmit={changePassword} />;
   }
 
   const hasReal = Boolean(data?.configured && (data?.meta?.unitCount ?? 0) > 0);
