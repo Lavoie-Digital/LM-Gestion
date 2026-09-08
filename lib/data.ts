@@ -24,7 +24,7 @@ export const COMPANY = {
   city: "Saguenay",
   region: "Saguenay–Lac-Saint-Jean",
   phone: "(418) 550-0694, poste 2",
-  email: "lm.gestion.immobiliere@hotmail.com",
+  email: "info@lmgestionimmobiliere.ca",
   address: "110, rue Racine Est, Chicoutimi (Québec) G7H 1R1",
   hours: "Lun – Ven, 8 h 30 à 17 h",
   founded: 2023,
