@@ -10,7 +10,7 @@
 import { adminAuthPrivileged, adminConfigured, authConfigured } from "@/lib/firebase-admin";
 import { resolveIsAdmin } from "@/lib/access";
 import { isOwnerEmail } from "@/lib/owners-admin";
-import { brandedBody, sendBrandedEmail } from "@/lib/email";
+import { brandedBody, escapeHtml, sendBrandedEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -46,19 +46,40 @@ export async function POST(request: Request) {
       handleCodeInApp: true,
     });
 
+    // Firebase génère le lien sur *.firebaseapp.com. Un courriel envoyé depuis
+    // lmgestionimmobiliere.ca qui pointe vers un AUTRE domaine déclenche les filtres
+    // anti-hameçonnage (surtout Outlook) → pourriel. On réécrit donc le lien sur
+    // NOTRE domaine en conservant les paramètres (oobCode, mode=signIn, apiKey…).
+    // La page /connexion complète la connexion via signInWithEmailLink (le domaine
+    // du lien n'importe pas pour cette API, seul le oobCode compte).
+    const gen = new URL(link);
+    const signInLink = new URL(`${origin}/connexion`);
+    gen.searchParams.forEach((v, k) => signInLink.searchParams.set(k, v));
+    signInLink.searchParams.set("e", email);
+    const ctaUrl = signInLink.toString();
+
     const html = brandedBody({
       heading: "Votre lien de connexion",
       paragraphs: [
         "Bonjour,",
-        "Cliquez sur le bouton ci-dessous pour vous connecter à votre espace client. Ce lien est valable une seule fois et pour une durée limitée.",
-        "Si vous n'avez pas demandé cette connexion, vous pouvez ignorer ce courriel.",
+        "Voici votre accès à l'espace client de LM Gestion Immobilière. Cliquez sur le bouton ci-dessous pour vous connecter — ce lien est valable une seule fois et pour une durée limitée.",
+        "Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :",
+        `<a href="${ctaUrl}" style="color:#0b0b0c;word-break:break-all;">${escapeHtml(ctaUrl)}</a>`,
+        "Vous n'avez pas demandé cette connexion&nbsp;? Vous pouvez simplement ignorer ce courriel.",
       ],
-      ctaText: "Se connecter",
-      ctaUrl: link,
-      preheader: "Votre lien de connexion à l'espace client",
+      ctaText: "Se connecter à mon espace",
+      ctaUrl,
+      preheader: "Votre lien de connexion à l'espace client LM Gestion Immobilière",
     });
-    const text = `Bonjour,\n\nConnectez-vous à votre espace client avec ce lien (valable une fois) :\n${link}\n\nSi vous n'avez pas demandé cette connexion, ignorez ce courriel.\n\nLM Gestion Immobilière`;
-    await sendBrandedEmail({ to: email, subject: "Votre lien de connexion — LM Gestion Immobilière", html, text });
+    const text = `Bonjour,\n\nVoici votre accès à l'espace client de LM Gestion Immobilière.\nConnectez-vous avec ce lien (valable une seule fois) :\n${ctaUrl}\n\nVous n'avez pas demandé cette connexion ? Ignorez ce courriel.\n\nLM Gestion Immobilière\n${SITE_URL}`;
+    // reply_to vers une vraie boîte : renforce la légitimité (pas un no-reply muet).
+    await sendBrandedEmail({
+      to: email,
+      subject: "Votre lien de connexion — LM Gestion Immobilière",
+      html,
+      text,
+      replyTo: "info@lmgestionimmobiliere.ca",
+    });
 
     return Response.json({ ok: true });
   } catch (err) {

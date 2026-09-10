@@ -93,6 +93,13 @@ export async function sendBrandedEmail(opts: {
       { type: "text/plain", value: opts.text },
       { type: "text/html", value: opts.html },
     ],
+    // Courriels transactionnels : on désactive le suivi SendGrid pour que les liens
+    // restent sur notre domaine (le suivi de clics les réécrit sur sendgrid.net, ce
+    // qui crée un décalage de domaine → hameçonnage présumé → pourriel).
+    tracking_settings: {
+      click_tracking: { enable: false, enable_text: false },
+      open_tracking: { enable: false },
+    },
   };
   const res = await fetch(SENDGRID_URL, {
     method: "POST",
