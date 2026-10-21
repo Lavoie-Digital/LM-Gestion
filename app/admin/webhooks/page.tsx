@@ -44,7 +44,11 @@ export default function WebhooksPage() {
   const refresh = useCallback(async () => {
     setBusy(true);
     try {
-      const res = await fetch("/api/plexflow/webhook-log", { cache: "no-store" });
+      const token = await user?.getIdToken();
+      const res = await fetch("/api/plexflow/webhook-log", {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       setEntries(Array.isArray(data.entries) ? data.entries : []);
     } catch {
@@ -52,7 +56,7 @@ export default function WebhooksPage() {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (loading || !isAdmin) return;
@@ -82,7 +86,11 @@ export default function WebhooksPage() {
   }
 
   async function clearLog() {
-    await fetch("/api/plexflow/webhook-log", { method: "DELETE" });
+    const token = await user?.getIdToken();
+    await fetch("/api/plexflow/webhook-log", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
     await refresh();
   }
 

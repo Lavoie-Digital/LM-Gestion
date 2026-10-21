@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Politique de confidentialité de LM Gestion Immobilière — protection des renseignements personnels conformément à la Loi 25 (Québec).",
 };
 
-const UPDATED = "16 juillet 2026";
+const UPDATED = "21 octobre 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -38,6 +38,18 @@ export default function ConfidentialitePage() {
         <div className="shell">
           <div className="mx-auto max-w-3xl">
             <p className="text-sm text-smoke/80">Dernière mise à jour : {UPDATED}</p>
+
+            <div className="mt-8 rounded-[3px] border border-line bg-paper-2/60 p-6 md:p-8">
+              <h2 className="font-display text-xl tracking-tight">En bref</h2>
+              <ul className="mt-4 ml-5 flex list-disc flex-col gap-2 text-pretty leading-relaxed text-smoke">
+                <li>Chaque propriétaire ne voit <strong className="text-ink">que les données de son propre parc</strong> ; ce cloisonnement est vérifié par nos serveurs à chaque requête.</li>
+                <li>Vos données sont <strong className="text-ink">chiffrées</strong> lors de leur transmission (HTTPS) et sur nos serveurs.</li>
+                <li>Vos documents ne sont <strong className="text-ink">jamais publics</strong> : ils s'ouvrent par des liens personnels qui expirent après 15 minutes.</li>
+                <li>Nous ne vendons, ne louons et ne partageons <strong className="text-ink">aucun</strong> renseignement à des fins publicitaires.</li>
+                <li>Vos données ne servent <strong className="text-ink">pas à entraîner</strong> des modèles d'intelligence artificielle.</li>
+                <li>Vous pouvez en tout temps demander l'accès, la correction, une copie ou la suppression de vos renseignements.</li>
+              </ul>
+            </div>
 
             <div className="mt-10 flex flex-col gap-10">
               <Section title="1. Portée">
@@ -142,6 +154,7 @@ export default function ConfidentialitePage() {
                   <li><strong className="text-ink">SendGrid (Twilio)</strong> — envoi des courriels (formulaire, notifications).</li>
                   <li><strong className="text-ink">PlexFlow</strong> — plateforme de gestion immobilière (données du parc).</li>
                   <li><strong className="text-ink">Anthropic (Claude)</strong> — assistance par intelligence artificielle (voir section 8).</li>
+                  <li><strong className="text-ink">Serper et Jina AI</strong> — recherche d'annonces de location publiques pour l'analyse du marché. Aucun renseignement personnel n'y est transmis.</li>
                   <li><strong className="text-ink">Firebase App Hosting (Google)</strong> — hébergement de l'application.</li>
                 </ul>
                 <p>
@@ -156,7 +169,20 @@ export default function ConfidentialitePage() {
                   à la décision</strong>, sous supervision humaine : estimation des loyers du marché
                   et résumé de documents. Aucune décision produisant un effet juridique ou vous
                   affectant de manière significative n'est prise <em>exclusivement</em> à partir d'un
-                  traitement automatisé. Si un tel traitement était mis en place, vous en seriez
+                  traitement automatisé.
+                </p>
+                <p>
+                  L'estimation des loyers du marché repose uniquement sur des{" "}
+                  <strong className="text-ink">annonces publiques</strong> : aucun renseignement sur
+                  vous ou vos locataires n'est utilisé. Lorsque l'assistance par IA sert à résumer un
+                  document, celui-ci est transmis à notre fournisseur (Anthropic) par une connexion
+                  chiffrée, <strong className="text-ink">uniquement pour produire le résumé</strong>.
+                  Selon les conditions commerciales de ce fournisseur, ces données ne servent pas à
+                  entraîner ses modèles. Seule notre équipe de gestion utilise cet outil, jamais de
+                  façon automatique.
+                </p>
+                <p>
+                  Si un tel traitement était mis en place, vous en seriez
                   informé et pourriez demander à connaître les renseignements utilisés, les motifs, et
                   à faire réviser la décision par une personne.
                 </p>
@@ -185,11 +211,43 @@ export default function ConfidentialitePage() {
 
               <Section title="11. Sécurité et incidents de confidentialité">
                 <p>
-                  Nous mettons en place des mesures de sécurité raisonnables — accès restreints selon
-                  le rôle, authentification, chiffrement en transit, cloisonnement des données par
-                  client — afin de protéger vos renseignements contre la perte, l'accès ou la
-                  divulgation non autorisés.
+                  Nous protégeons vos renseignements contre la perte, l'accès ou la divulgation non
+                  autorisés par plusieurs mesures complémentaires :
                 </p>
+                <ul className="ml-5 flex list-disc flex-col gap-2">
+                  <li>
+                    <strong className="text-ink">Chiffrement</strong> : toutes les communications
+                    passent par HTTPS (chiffrement en transit, imposé par le navigateur) ; les données
+                    et documents sont chiffrés au repos par notre hébergeur (Google Cloud).
+                  </li>
+                  <li>
+                    <strong className="text-ink">Cloisonnement par propriétaire</strong> : nos
+                    serveurs vérifient votre identité à chaque requête et ne renvoient que les
+                    données de votre propre parc. Le navigateur n'a aucun accès direct à la base de
+                    données ni à l'espace de stockage des documents.
+                  </li>
+                  <li>
+                    <strong className="text-ink">Documents protégés</strong> : aucun document n'est
+                    accessible publiquement ; chaque consultation passe par un lien personnel et
+                    temporaire (15 minutes).
+                  </li>
+                  <li>
+                    <strong className="text-ink">Authentification</strong> : connexion par compte
+                    Google, par mot de passe ou par lien à usage unique envoyé par courriel ; tout
+                    mot de passe temporaire doit être remplacé dès la première connexion.
+                  </li>
+                  <li>
+                    <strong className="text-ink">Accès restreints</strong> : seules les personnes de
+                    notre équipe qui en ont besoin pour la gestion de votre parc ont accès à vos
+                    renseignements. Les clés d'accès à nos fournisseurs restent sur nos serveurs et
+                    ne sont jamais exposées.
+                  </li>
+                  <li>
+                    <strong className="text-ink">Protection contre les abus</strong> : limitation
+                    du nombre de tentatives de connexion et d'envois, en-têtes de sécurité web
+                    (protection contre l'hameçonnage par incrustation et les contenus malveillants).
+                  </li>
+                </ul>
                 <p>
                   En cas d'<strong className="text-ink">incident de confidentialité</strong> présentant
                   un risque de préjudice sérieux, nous prenons les mesures nécessaires pour en

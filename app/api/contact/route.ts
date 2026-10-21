@@ -1,4 +1,5 @@
 import { COMPANY } from "@/lib/data";
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 /* ------------------------------------------------------------------ *
  * Formulaire de contact → envoi de courriels via SendGrid.
@@ -114,6 +115,10 @@ async function sendEmail(
 }
 
 export async function POST(request: Request) {
+  // Anti-spam : 5 envois par IP / heure.
+  const rl = rateLimit(`contact:${clientIp(request)}`, 5, 60 * 60 * 1000);
+  if (!rl.ok) return tooManyRequests(rl.retryAfter);
+
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) {
     return Response.json(

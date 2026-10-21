@@ -8,6 +8,8 @@ import {
   type Neighborhood,
   type UnitType,
 } from "@/lib/market";
+import { cacheGet, cacheSet } from "@/lib/cache";
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 /* ------------------------------------------------------------------ *
  * Analyse de marché — route serveur (jamais exécutée côté client).
@@ -32,6 +34,15 @@ const NUM_RESULTS = 30;
 /** Bornes de loyer plausibles (filtre le bruit : prix de vente, frais, aberrations). */
 const MIN_RENT = 250;
 const MAX_RENT = 6000;
+/**
+ * Route publique (la démo l'utilise) → protégée contre l'abus de coûts API :
+ *  - résultat mis en cache par quartier × type (nombre de combinaisons fini,
+ *    donc coût plafonné) ;
+ *  - au-delà, nouvelles analyses limitées par IP.
+ */
+const RESULT_TTL_MS = 6 * 60 * 60 * 1000;
+const RATE_MAX = 6;
+const RATE_WINDOW_MS = 60 * 60 * 1000;
 
 type Organic = { title?: string; snippet?: string; link?: string };
 
@@ -63,6 +74,15 @@ export async function POST(request: Request) {
   if (!neighborhood || !unitType) {
     return Response.json({ error: "Quartier ou type de logement inconnu." }, { status: 400 });
   }
+
+  const cacheKey = `market:${neighborhood.id}:${unitType.id}`;
+  const hit = cacheGet<MarketResult>(cacheKey);
+  if (hit) {
+    console.log(`[market-analysis] ✓ Cache — ${neighborhood.label} · ${unitType.label}`);
+    return Response.json(hit);
+  }
+  const rl = rateLimit(`market:${clientIp(request)}`, RATE_MAX, RATE_WINDOW_MS);
+  if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
   console.log(`\n[market-analysis] ▶ Analyse demandée — ${neighborhood.label} · ${unitType.label}`);
 
@@ -154,6 +174,7 @@ export async function POST(request: Request) {
   console.log(
     `[market-analysis] ✔ Réponse — loyer marché ${result.marketPrice} $/mois sur ${result.sampleSize} annonce(s).\n`
   );
+  cacheSet(cacheKey, result, RESULT_TTL_MS);
   return Response.json(result);
 }
 

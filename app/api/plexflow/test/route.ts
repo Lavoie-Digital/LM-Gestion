@@ -4,8 +4,11 @@
  *
  * SÉCURITÉ : la clé PLEXFLOW_API_KEY (serveur) n'est envoyée QU'aux domaines
  * *.plexflow.ca — jamais à une URL arbitraire (sinon la clé fuiterait vers un
- * serveur tiers). Route à usage admin/développement.
+ * serveur tiers). Route RÉSERVÉE AUX ADMINS (la réponse contient des données
+ * du parc : locataires, baux, loyers).
  * ------------------------------------------------------------------ */
+
+import { verifyBearer } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,6 +28,10 @@ function isPlexflowHost(fullUrl: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const id = await verifyBearer(request);
+  if (!id) return Response.json({ error: "Non authentifié." }, { status: 401 });
+  if (!id.isAdmin) return Response.json({ error: "Réservé aux admins." }, { status: 403 });
+
   const key = process.env.PLEXFLOW_API_KEY;
   if (!key) {
     return Response.json({ error: "PLEXFLOW_API_KEY manquante dans .env." }, { status: 503 });

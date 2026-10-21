@@ -58,9 +58,10 @@ export default function ApiTestPage() {
     setBusy(true);
     setResult(null);
     try {
+      const token = await user?.getIdToken();
       const res = await fetch("/api/plexflow/test", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ baseUrl, path, authStyle }),
       });
       setResult(await res.json());

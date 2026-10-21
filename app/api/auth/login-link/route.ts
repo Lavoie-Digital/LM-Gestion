@@ -11,6 +11,7 @@ import { adminAuthPrivileged, adminConfigured, authConfigured } from "@/lib/fire
 import { resolveIsAdmin } from "@/lib/access";
 import { isOwnerEmail } from "@/lib/owners-admin";
 import { brandedBody, escapeHtml, sendBrandedEmail } from "@/lib/email";
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,6 +21,10 @@ const ALLOWED_ORIGINS = [SITE_URL, "http://localhost:3123", "http://localhost:30
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
+  // Anti-abus : 5 demandes de lien par IP / 15 min.
+  const rl = rateLimit(`login-link:${clientIp(request)}`, 5, 15 * 60 * 1000);
+  if (!rl.ok) return tooManyRequests(rl.retryAfter);
+
   if (!authConfigured() || !adminConfigured()) {
     return Response.json({ error: "Service d'authentification non configuré." }, { status: 503 });
   }
@@ -32,6 +37,10 @@ export async function POST(request: Request) {
   }
   const email = (body.email ?? "").trim().toLowerCase();
   if (!EMAIL_RE.test(email)) return Response.json({ error: "Courriel invalide." }, { status: 400 });
+
+  // Et 3 liens par courriel / 15 min (évite d'inonder une boîte de réception).
+  const rlEmail = rateLimit(`login-link-email:${email}`, 3, 15 * 60 * 1000);
+  if (!rlEmail.ok) return tooManyRequests(rlEmail.retryAfter);
 
   const origin = ALLOWED_ORIGINS.includes(body.origin ?? "") ? (body.origin as string) : SITE_URL;
 
