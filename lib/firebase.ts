@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
@@ -26,7 +26,7 @@ export function firebaseConfigured(): boolean {
 }
 
 /**
- * App Check (reCAPTCHA v3) : prouve à Firebase que les requêtes viennent bien
+ * App Check (reCAPTCHA Enterprise / Fraud Defense) : prouve à Firebase que les requêtes viennent bien
  * de NOTRE site (et non d'un script ou d'un robot). Clé de site publique.
  * En dev, un jeton de débogage est affiché dans la console du navigateur : à
  * enregistrer dans Firebase → App Check → Gérer les jetons de débogage.
@@ -41,7 +41,7 @@ function getFirebaseApp(): FirebaseApp {
       (self as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
     }
     initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+      provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
       isTokenAutoRefreshEnabled: true,
     });
   }

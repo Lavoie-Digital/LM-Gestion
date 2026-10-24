@@ -143,7 +143,7 @@ export default function ConfidentialitePage() {
                   <strong className="text-ink">Protection anti-robots (Google reCAPTCHA et Firebase
                   App Check).</strong> Pour protéger l'espace client et vos données contre les
                   robots, les tentatives d'intrusion et les usages abusifs, notre site utilise
-                  reCAPTCHA v3 de Google, par l'intermédiaire de Firebase App Check. Ce service
+                  reCAPTCHA Enterprise de Google, par l'intermédiaire de Firebase App Check. Ce service
                   vérifie en arrière-plan que les requêtes proviennent bien de notre site, utilisé
                   par une personne réelle. Pour ce faire, il analyse des renseignements techniques
                   sur votre appareil et votre navigation (adresse IP, type de navigateur,
