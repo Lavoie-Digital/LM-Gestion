@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Politique de confidentialité de LM Gestion Immobilière — protection des renseignements personnels conformément à la Loi 25 (Québec).",
 };
 
-const UPDATED = "21 octobre 2026";
+const UPDATED = "24 octobre 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -137,9 +137,29 @@ export default function ConfidentialitePage() {
                   Le site n'utilise que des témoins <strong className="text-ink">strictement
                   nécessaires</strong> au fonctionnement de l'espace client (maintien de votre
                   session d'authentification). Aucun témoin publicitaire, statistique ou de suivi
-                  n'est déposé, et aucune technologie d'identification, de localisation ou de
-                  profilage n'est activée. Aucun consentement préalable n'est donc requis pour ces
-                  témoins essentiels.
+                  n'est déposé, et aucune technologie de localisation ou de profilage n'est activée.
+                </p>
+                <p>
+                  <strong className="text-ink">Protection anti-robots (Google reCAPTCHA et Firebase
+                  App Check).</strong> Pour protéger l'espace client et vos données contre les
+                  robots, les tentatives d'intrusion et les usages abusifs, notre site utilise
+                  reCAPTCHA v3 de Google, par l'intermédiaire de Firebase App Check. Ce service
+                  vérifie en arrière-plan que les requêtes proviennent bien de notre site, utilisé
+                  par une personne réelle. Pour ce faire, il analyse des renseignements techniques
+                  sur votre appareil et votre navigation (adresse IP, type de navigateur,
+                  interactions avec la page) et peut déposer un témoin technique de Google. Ces
+                  renseignements servent <strong className="text-ink">uniquement à la
+                  sécurité</strong> : ils ne sont pas utilisés à des fins publicitaires par{" "}
+                  {COMPANY.name}, et nous n'y avons pas accès.
+                </p>
+                <p>
+                  Ce site est protégé par reCAPTCHA ; les{" "}
+                  <a href="https://policies.google.com/privacy?hl=fr" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-2">Règles de confidentialité</a>
+                  {" "}et les{" "}
+                  <a href="https://policies.google.com/terms?hl=fr" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-2">Conditions d'utilisation</a>
+                  {" "}de Google s'appliquent. Ces témoins de sécurité étant nécessaires au bon
+                  fonctionnement et à la protection du site, ils ne requièrent pas de consentement
+                  préalable.
                 </p>
               </Section>
 
@@ -151,6 +171,7 @@ export default function ConfidentialitePage() {
                 </p>
                 <ul className="ml-5 flex list-disc flex-col gap-2">
                   <li><strong className="text-ink">Google Firebase</strong> — authentification et stockage de l'espace client.</li>
+                  <li><strong className="text-ink">Google reCAPTCHA et Firebase App Check</strong> — protection du site contre les robots et les accès abusifs (voir section 6).</li>
                   <li><strong className="text-ink">SendGrid (Twilio)</strong> — envoi des courriels (formulaire, notifications).</li>
                   <li><strong className="text-ink">PlexFlow</strong> — plateforme de gestion immobilière (données du parc).</li>
                   <li><strong className="text-ink">Anthropic (Claude)</strong> — assistance par intelligence artificielle (voir section 8).</li>
@@ -241,6 +262,12 @@ export default function ConfidentialitePage() {
                     notre équipe qui en ont besoin pour la gestion de votre parc ont accès à vos
                     renseignements. Les clés d'accès à nos fournisseurs restent sur nos serveurs et
                     ne sont jamais exposées.
+                  </li>
+                  <li>
+                    <strong className="text-ink">Vérification de l'application</strong> : grâce à
+                    Firebase App Check et reCAPTCHA, nos services Firebase vérifient que chaque
+                    requête provient bien de notre site légitime, ce qui permet de bloquer les
+                    robots et les scripts automatisés.
                   </li>
                   <li>
                     <strong className="text-ink">Protection contre les abus</strong> : limitation
