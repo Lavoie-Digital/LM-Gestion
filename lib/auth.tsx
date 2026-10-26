@@ -20,7 +20,7 @@ import { firebaseConfigured, getFirebaseAuth, googleProvider } from "./firebase"
  * Surchargée via NEXT_PUBLIC_ALLOWED_EMAILS (séparées par des virgules).
  */
 export const ALLOWED_EMAILS = (
-  process.env.NEXT_PUBLIC_ALLOWED_EMAILS || "xavier@lavoiedigital.ca"
+  process.env.NEXT_PUBLIC_ALLOWED_EMAILS || "xavier@lavoiedigital.ca,annesophie.direction@lmgestionimmobiliere.ca"
 )
   .split(",")
   .map((e) => e.trim().toLowerCase())
@@ -28,7 +28,7 @@ export const ALLOWED_EMAILS = (
 
 /** Comptes administrateurs (zone admin : gestion des immeubles par client). */
 export const ADMIN_EMAILS = (
-  process.env.NEXT_PUBLIC_ADMIN_EMAILS || "xavier@lavoiedigital.ca"
+  process.env.NEXT_PUBLIC_ADMIN_EMAILS || "xavier@lavoiedigital.ca,annesophie.direction@lmgestionimmobiliere.ca"
 )
   .split(",")
   .map((e) => e.trim().toLowerCase())

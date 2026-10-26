@@ -6,7 +6,7 @@
 import { adminAuth, authConfigured } from "./firebase-admin";
 import { isDbAdmin } from "./admins";
 
-export const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "xavier@lavoiedigital.ca")
+export const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "xavier@lavoiedigital.ca,annesophie.direction@lmgestionimmobiliere.ca")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
