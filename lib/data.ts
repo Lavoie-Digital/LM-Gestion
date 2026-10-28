@@ -24,6 +24,8 @@ export const COMPANY = {
   city: "Saguenay",
   region: "Saguenay–Lac-Saint-Jean",
   phone: "(418) 550-0694, poste 2",
+  /** Lien d'appel : numéro international + pause (« , ») puis le poste. */
+  phoneHref: "tel:+14185500694,2",
   email: "info@lmgestionimmobiliere.ca",
   address: "110, rue Racine Est, Chicoutimi (Québec) G7H 1R1",
   hours: "Lun – Ven, 8 h 30 à 17 h",

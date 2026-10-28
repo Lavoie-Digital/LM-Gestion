@@ -4,7 +4,7 @@ const SITE_URL = "https://lmgestionimmobiliere.ca";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const routes = ["", "/services", "/approche", "/portefeuille", "/contact"];
+  const routes = ["", "/services", "/approche", "/portefeuille", "/contact", "/gestion-immobiliere-lac-saint-jean"];
   const legal = ["/confidentialite", "/conditions"];
   return [
     ...routes.map((path) => ({

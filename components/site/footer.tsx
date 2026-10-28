@@ -43,10 +43,17 @@ export function Footer() {
                 Au service de tout le Saguenay–Lac-Saint-Jean : Chicoutimi, Jonquière, La Baie,
                 Alma et la région.
               </p>
+              <Link
+                href="/gestion-immobiliere-lac-saint-jean"
+                className="link-draw mt-3 inline-flex items-center gap-1 text-sm text-paper/85 transition-colors hover:text-paper"
+              >
+                Gestion immobilière au Lac-Saint-Jean
+                <ArrowUpRight className="size-3.5" />
+              </Link>
 
               <div className="mt-8 flex flex-col gap-3 text-sm text-ash">
                 <a
-                  href={`tel:${COMPANY.phone.replace(/[^\d+]/g, "")}`}
+                  href={COMPANY.phoneHref}
                   className="group inline-flex items-center gap-3 transition-colors hover:text-paper"
                 >
                   <Phone className="size-4 opacity-60" />

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 const COORDS = [
-  { icon: Phone, label: "Téléphone", value: COMPANY.phone, href: `tel:${COMPANY.phone.replace(/[^\d+]/g, "")}` },
+  { icon: Phone, label: "Téléphone", value: COMPANY.phone, href: COMPANY.phoneHref },
   { icon: Mail, label: "Courriel", value: COMPANY.email, href: `mailto:${COMPANY.email}` },
   { icon: MapPin, label: "Bureau", value: COMPANY.address },
   { icon: Clock, label: "Heures", value: "Lun – Ven · 8 h 30 à 17 h" },
