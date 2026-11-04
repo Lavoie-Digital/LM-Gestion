@@ -8,11 +8,16 @@
 
 import { FieldValue } from "firebase-admin/firestore";
 import { adminConfigured, adminDb } from "./firebase-admin";
+import { cached, cacheInvalidate } from "./cache";
 
+/** Vérifié à CHAQUE requête API (via verifyBearer) → gardé 60 s en mémoire. */
 export async function isDbAdmin(email: string): Promise<boolean> {
   if (!adminConfigured()) return false;
-  const snap = await adminDb().collection("admins").where("email", "==", email.toLowerCase()).limit(1).get();
-  return !snap.empty;
+  const mail = email.toLowerCase();
+  return cached(`admins:is:${mail}`, 60_000, async () => {
+    const snap = await adminDb().collection("admins").where("email", "==", mail).limit(1).get();
+    return !snap.empty;
+  });
 }
 
 export async function listDbAdmins(): Promise<{ id: string; email: string }[]> {
@@ -29,6 +34,7 @@ export async function addDbAdmin(email: string): Promise<boolean> {
   const existing = await adminDb().collection("admins").where("email", "==", mail).limit(1).get();
   if (!existing.empty) return false;
   await adminDb().collection("admins").add({ email: mail, createdAt: FieldValue.serverTimestamp() });
+  cacheInvalidate("admins:");
   return true;
 }
 
@@ -38,4 +44,5 @@ export async function removeDbAdmin(email: string): Promise<void> {
   const batch = adminDb().batch();
   snap.docs.forEach((d) => batch.delete(d.ref));
   await batch.commit();
+  cacheInvalidate("admins:");
 }

@@ -6,7 +6,7 @@
 import { verifyBearer } from "@/lib/access";
 import { listSubaccountsDetailed } from "@/lib/plexflow-store";
 import { listOwners } from "@/lib/owners-admin";
-import { unreadCountsBySubaccount } from "@/lib/notes";
+import { openThreadCountsBySubaccount } from "@/lib/notes";
 import { listManagers } from "@/lib/managers";
 import { listManualSubaccounts } from "@/lib/manual-subaccounts";
 
@@ -19,10 +19,10 @@ export async function GET(request: Request) {
   if (!id.isAdmin) return Response.json({ error: "Réservé aux admins." }, { status: 403 });
 
   try {
-    const [subs, owners, unread, managers, manual] = await Promise.all([
+    const [subs, owners, openNotes, managers, manual] = await Promise.all([
       listSubaccountsDetailed(),
       listOwners(),
-      unreadCountsBySubaccount().catch(() => ({} as Record<string, number>)),
+      openThreadCountsBySubaccount().catch(() => ({} as Record<string, number>)),
       listManagers().catch(() => ({} as Record<string, string>)),
       listManualSubaccounts().catch(() => [] as string[]),
     ]);
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
       unitCount: s.unitCount,
       monthlyRevenueCents: s.monthlyRevenueCents,
       emails: (emailsBySub.get(s.name) ?? []).sort(),
-      unreadNotes: unread[s.name] ?? 0,
+      openNotes: openNotes[s.name] ?? 0,
       manager: managers[s.name] ?? null,
       manual: false,
     }));
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
         unitCount: 0,
         monthlyRevenueCents: 0,
         emails: (emailsBySub.get(name) ?? []).sort(),
-        unreadNotes: unread[name] ?? 0,
+        openNotes: openNotes[name] ?? 0,
         manager: managers[name] ?? null,
         manual: manualSet.has(name),
       }));

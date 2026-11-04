@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Clock, CornerDownRight, FolderOpen, KeyRound, Loader2, LogOut, Paperclip, Plus, Search, Send, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, FolderOpen, Inbox, KeyRound, Loader2, LogOut, Plus, Search, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatCAD } from "@/lib/utils";
 import { DocumentExplorer } from "@/components/admin/document-explorer";
-import { buildThreads, FilePicker, type NoteMeta } from "@/components/dashboard/notes";
 
-type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[]; unreadNotes?: number; manager?: string | null; manual?: boolean };
+type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[]; openNotes?: number; manager?: string | null; manual?: boolean };
 type Admins = { envAdmins: string[]; dbAdmins: { id: string; email: string }[] };
 
 const inputCls =
@@ -26,22 +25,11 @@ export default function AdminPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [accessFilter, setAccessFilter] = useState<"all" | "with" | "without">("all");
-  const [unreadOnly, setUnreadOnly] = useState(false);
   const [newClient, setNewClient] = useState("");
   const [emailInputs, setEmailInputs] = useState<Record<string, string>>({});
   const [newAdmin, setNewAdmin] = useState("");
   // Explorateur de documents (façon fichiers) ouvert pour ce sous-compte.
   const [explorerSub, setExplorerSub] = useState<string | null>(null);
-  // Notes par sous-compte
-  const [openNotes, setOpenNotes] = useState<string | null>(null);
-  const [notesBySub, setNotesBySub] = useState<Record<string, NoteMeta[]>>({});
-  const [noteDrafts, setNoteDrafts] = useState<Record<string, { title: string; body: string; scheduledFor: string }>>({});
-  const [noteFiles, setNoteFiles] = useState<Record<string, File[]>>({});
-  const [sendingNote, setSendingNote] = useState<string | null>(null);
-  const [replyOpen, setReplyOpen] = useState<string | null>(null); // id de la note racine
-  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
-  const [replyFiles, setReplyFiles] = useState<Record<string, File[]>>({});
-  const [replyBusy, setReplyBusy] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.replace("/connexion");
@@ -158,110 +146,18 @@ export default function AdminPage() {
       authedFetch("/api/admin/admins", { method: "DELETE", body: JSON.stringify({ email }) })
     );
 
-  // ---- Notes ----
-  const loadNotes = useCallback(
-    async (name: string) => {
-      try {
-        const res = await authedFetch(`/api/admin/notes?subaccount=${encodeURIComponent(name)}`);
-        const data = await res.json();
-        setNotesBySub((m) => ({ ...m, [name]: Array.isArray(data.notes) ? data.notes : [] }));
-      } catch {
-        setNotesBySub((m) => ({ ...m, [name]: [] }));
-      }
-    },
-    [authedFetch]
-  );
-
-  function toggleNotes(name: string) {
-    if (openNotes === name) {
-      setOpenNotes(null);
-      return;
-    }
-    setOpenNotes(name);
-    loadNotes(name); // le GET marque les notes du client comme lues côté serveur
-    // Efface le badge « non lu » localement.
-    setRows((rs) => rs.map((r) => (r.name === name ? { ...r, unreadNotes: 0 } : r)));
-  }
-
-  async function sendNote(name: string) {
-    const draft = noteDrafts[name] ?? { title: "", body: "", scheduledFor: "" };
-    const attach = noteFiles[name] ?? [];
-    if (!draft.body.trim() && attach.length === 0) return;
-    // datetime-local (heure locale) → ISO UTC pour comparaison serveur.
-    let scheduledFor = "";
-    if (draft.scheduledFor) {
-      const d = new Date(draft.scheduledFor);
-      if (!Number.isNaN(d.getTime())) scheduledFor = d.toISOString();
-    }
-    setSendingNote(name);
-    setError(null);
-    try {
-      const token = await user!.getIdToken();
-      const fd = new FormData();
-      fd.append("subaccount", name);
-      fd.append("title", draft.title);
-      fd.append("body", draft.body);
-      if (scheduledFor) fd.append("scheduledFor", scheduledFor);
-      attach.forEach((f) => fd.append("files", f));
-      const res = await fetch("/api/admin/notes", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Envoi impossible.");
-      setNoteDrafts((m) => ({ ...m, [name]: { title: "", body: "", scheduledFor: "" } }));
-      setNoteFiles((m) => ({ ...m, [name]: [] }));
-      await loadNotes(name);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Envoi impossible.");
-    } finally {
-      setSendingNote(null);
-    }
-  }
-
-  const deleteNote = (name: string, noteId: string) =>
-    run(`note-${noteId}`, async () => {
-      const res = await authedFetch("/api/admin/notes", { method: "DELETE", body: JSON.stringify({ id: noteId }) });
-      await loadNotes(name);
-      return res;
-    });
-
-  async function replyNote(name: string, rootId: string) {
-    const text = (replyDraft[rootId] ?? "").trim();
-    const attach = replyFiles[rootId] ?? [];
-    if (!text && attach.length === 0) return;
-    setReplyBusy(rootId);
-    setError(null);
-    try {
-      const token = await user!.getIdToken();
-      const fd = new FormData();
-      fd.append("subaccount", name);
-      fd.append("body", text);
-      fd.append("parentId", rootId);
-      attach.forEach((f) => fd.append("files", f));
-      const res = await fetch("/api/admin/notes", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Réponse impossible.");
-      setReplyDraft((m) => ({ ...m, [rootId]: "" }));
-      setReplyFiles((m) => ({ ...m, [rootId]: [] }));
-      setReplyOpen(null);
-      await loadNotes(name);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Réponse impossible.");
-    } finally {
-      setReplyBusy(null);
-    }
-  }
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
-      if (unreadOnly && !((r.unreadNotes ?? 0) > 0)) return false;
       if (accessFilter === "with" && r.emails.length === 0) return false;
       if (accessFilter === "without" && r.emails.length > 0) return false;
       if (!q) return true;
       return r.name.toLowerCase().includes(q) || r.emails.some((e) => e.toLowerCase().includes(q));
     });
-  }, [rows, query, accessFilter, unreadOnly]);
+  }, [rows, query, accessFilter]);
 
   const linkedCount = rows.filter((r) => r.emails.length > 0).length;
-  const totalUnread = rows.reduce((s, r) => s + (r.unreadNotes ?? 0), 0);
+  const totalOpen = rows.reduce((s, r) => s + (r.openNotes ?? 0), 0);
   const adminEmails = useMemo(
     () => [...new Set([...admins.envAdmins, ...admins.dbAdmins.map((a) => a.email)])],
     [admins]
@@ -312,6 +208,12 @@ export default function AdminPage() {
             <ArrowLeft className="size-4" /> Tableau de bord
           </Link>
           <span className="kicker text-smoke">Zone admin</span>
+          <Link href="/admin/notes" className="inline-flex items-center gap-1.5 text-sm text-smoke underline-offset-2 hover:text-ink hover:underline">
+            <Inbox className="size-3.5" /> Notes
+            {totalOpen > 0 && (
+              <span className="rounded-full bg-ink px-1.5 py-0.5 text-[0.6rem] font-medium text-paper no-underline">{totalOpen}</span>
+            )}
+          </Link>
           <Link href="/admin/assistant" className="inline-flex items-center gap-1 text-sm text-smoke underline-offset-2 hover:text-ink hover:underline">
             <Sparkles className="size-3.5" /> Assistant IA
           </Link>
@@ -413,21 +315,16 @@ export default function AdminPage() {
             );
           })}
 
-          {/* Filtre : notes clients non lues */}
-          <button
-            type="button"
-            onClick={() => setUnreadOnly((v) => !v)}
+          {/* Notes à traiter → boîte de réception */}
+          <Link
+            href="/admin/notes"
             className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 transition-colors ${
-              unreadOnly
-                ? "border-ink bg-ink text-paper"
-                : totalUnread > 0
-                  ? "border-ink bg-white text-ink hover:bg-paper-2"
-                  : "border-line bg-white text-smoke hover:border-ink hover:text-ink"
+              totalOpen > 0 ? "border-ink bg-white text-ink hover:bg-paper-2" : "border-line bg-white text-smoke hover:border-ink hover:text-ink"
             }`}
           >
-            {totalUnread > 0 && <span className="inline-block size-1.5 rounded-full bg-current" />}
-            <span className="font-medium tabular">{totalUnread}</span> note{totalUnread > 1 ? "s" : ""} non lue{totalUnread > 1 ? "s" : ""}
-          </button>
+            {totalOpen > 0 && <span className="inline-block size-1.5 rounded-full bg-current" />}
+            <span className="font-medium tabular">{totalOpen}</span> note{totalOpen > 1 ? "s" : ""} à traiter
+          </Link>
         </div>
 
         <div className="relative mt-4">
@@ -584,149 +481,20 @@ export default function AdminPage() {
                   </button>
                 </div>
 
-                {/* Notes du sous-compte */}
+                {/* Notes du sous-compte → boîte de réception filtrée sur ce client */}
                 <div className="mt-3 border-t border-line-soft pt-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleNotes(r.name)}
+                  <Link
+                    href={`/admin/notes?client=${encodeURIComponent(r.name)}`}
                     className="inline-flex items-center gap-1.5 text-xs text-smoke hover:text-ink"
                   >
                     <StickyNote className="size-3.5" />
-                    Notes{notesBySub[r.name] ? ` (${notesBySub[r.name].length})` : ""}
-                    {(r.unreadNotes ?? 0) > 0 && (
+                    Notes
+                    {(r.openNotes ?? 0) > 0 && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-ink px-1.5 py-0.5 text-[0.6rem] font-medium text-paper">
-                        {r.unreadNotes} non lue{(r.unreadNotes ?? 0) > 1 ? "s" : ""}
+                        {r.openNotes} à traiter
                       </span>
                     )}
-                  </button>
-
-                  {openNotes === r.name && (
-                    <div className="mt-3">
-                      <form onSubmit={(e) => { e.preventDefault(); sendNote(r.name); }} className="flex flex-col gap-2">
-                        <input
-                          type="text"
-                          placeholder="Titre (optionnel)"
-                          value={noteDrafts[r.name]?.title ?? ""}
-                          onChange={(e) => setNoteDrafts((m) => ({ ...m, [r.name]: { title: e.target.value, body: m[r.name]?.body ?? "", scheduledFor: m[r.name]?.scheduledFor ?? "" } }))}
-                          className={inputCls}
-                        />
-                        <textarea
-                          placeholder="Écrire une note au client… (ou une réponse)"
-                          rows={3}
-                          value={noteDrafts[r.name]?.body ?? ""}
-                          onChange={(e) => setNoteDrafts((m) => ({ ...m, [r.name]: { title: m[r.name]?.title ?? "", body: e.target.value, scheduledFor: m[r.name]?.scheduledFor ?? "" } }))}
-                          className="w-full rounded-[2px] border border-line bg-white px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-smoke/60 focus:border-ink"
-                        />
-                        <div className="flex flex-wrap items-center gap-2">
-                          <label className="flex items-center gap-1.5 text-xs text-smoke">
-                            <Clock className="size-3.5" /> Programmer l'envoi :
-                          </label>
-                          <input
-                            type="datetime-local"
-                            value={noteDrafts[r.name]?.scheduledFor ?? ""}
-                            onChange={(e) => setNoteDrafts((m) => ({ ...m, [r.name]: { title: m[r.name]?.title ?? "", body: m[r.name]?.body ?? "", scheduledFor: e.target.value } }))}
-                            className="h-9 rounded-[2px] border border-line bg-white px-2 text-xs text-ink outline-none focus:border-ink"
-                          />
-                          {noteDrafts[r.name]?.scheduledFor && (
-                            <button
-                              type="button"
-                              onClick={() => setNoteDrafts((m) => ({ ...m, [r.name]: { title: m[r.name]?.title ?? "", body: m[r.name]?.body ?? "", scheduledFor: "" } }))}
-                              className="text-xs text-smoke underline-offset-2 hover:text-ink hover:underline"
-                            >
-                              annuler
-                            </button>
-                          )}
-                        </div>
-                        <FilePicker files={noteFiles[r.name] ?? []} setFiles={(f) => setNoteFiles((m) => ({ ...m, [r.name]: f }))} />
-                        <button
-                          type="submit"
-                          disabled={sendingNote === r.name}
-                          className="inline-flex h-10 w-fit items-center justify-center gap-1.5 rounded-[2px] bg-ink px-3.5 text-sm font-medium text-paper disabled:opacity-50"
-                        >
-                          {sendingNote === r.name ? <Loader2 className="size-4 animate-spin" /> : noteDrafts[r.name]?.scheduledFor ? <Clock className="size-4" /> : <Send className="size-4" />}
-                          {noteDrafts[r.name]?.scheduledFor ? "Programmer" : "Envoyer la note"}
-                        </button>
-                      </form>
-
-                      <div className="mt-3 flex flex-col gap-2">
-                        {buildThreads(notesBySub[r.name] ?? []).map(({ root, replies }) => {
-                          const msg = (n: NoteMeta) => (
-                            <div key={n.id} className={`rounded-[2px] border p-3 text-sm ${n.status === "scheduled" ? "border-dashed border-ink/40 bg-paper-2/30" : n.from === "client" ? "border-ink/40 bg-white" : "border-line bg-paper-2/40"}`}>
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  {n.status === "scheduled" && n.scheduledFor && (
-                                    <p className="mb-1 inline-flex items-center gap-1 rounded-full border border-ink/40 px-2 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-ink">
-                                      <Clock className="size-3" /> Programmé · {new Date(n.scheduledFor).toLocaleString("fr-CA", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                                    </p>
-                                  )}
-                                  <p className="mb-1 text-[0.6rem] font-medium uppercase tracking-wide text-smoke/70">
-                                    {n.from === "client" ? `Client${n.author ? ` · ${n.author}` : ""}` : "Gestionnaire"}
-                                  </p>
-                                  {n.title && <p className="font-medium text-ink">{n.title}</p>}
-                                  {n.body && <p className="whitespace-pre-wrap break-words text-smoke">{n.body}</p>}
-                                  {n.attachments && n.attachments.length > 0 && (
-                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                      {n.attachments.map((a, i) =>
-                                        a.url ? (
-                                          <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-[0.7rem] text-ink hover:border-ink">
-                                            <Paperclip className="size-3 shrink-0" /> <span className="truncate">{a.name}</span>
-                                          </a>
-                                        ) : (
-                                          <span key={i} className="inline-flex items-center gap-1 text-[0.7rem] text-smoke"><Paperclip className="size-3" /> {a.name}</span>
-                                        )
-                                      )}
-                                    </div>
-                                  )}
-                                  <p className="mt-1 text-[0.7rem] uppercase tracking-wide text-smoke/60">
-                                    {new Date(n.createdAt).toLocaleString("fr-CA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                                  </p>
-                                </div>
-                                <button type="button" onClick={() => deleteNote(r.name, n.id)} disabled={busy === `note-${n.id}`} className="shrink-0 text-smoke hover:text-red-600 disabled:opacity-50" aria-label="Supprimer">
-                                  {busy === `note-${n.id}` ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                                </button>
-                              </div>
-                            </div>
-                          );
-                          return (
-                            <div key={root.id} className="rounded-[3px] border border-line-soft p-2">
-                              {msg(root)}
-                              {replies.length > 0 && (
-                                <div className="mt-2 flex flex-col gap-2 border-l-2 border-line pl-3">
-                                  {replies.map((rep) => msg(rep))}
-                                </div>
-                              )}
-                              <div className="mt-2 pl-1">
-                                {replyOpen === root.id ? (
-                                  <div className="flex flex-col gap-2">
-                                    <textarea
-                                      autoFocus
-                                      rows={2}
-                                      value={replyDraft[root.id] ?? ""}
-                                      onChange={(e) => setReplyDraft((m) => ({ ...m, [root.id]: e.target.value }))}
-                                      placeholder="Votre réponse au client…"
-                                      className="w-full rounded-[2px] border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink"
-                                    />
-                                    <FilePicker files={replyFiles[root.id] ?? []} setFiles={(f) => setReplyFiles((m) => ({ ...m, [root.id]: f }))} />
-                                    <div className="flex items-center gap-2">
-                                      <button type="button" onClick={() => replyNote(r.name, root.id)} disabled={replyBusy === root.id || (!(replyDraft[root.id] ?? "").trim() && (replyFiles[root.id]?.length ?? 0) === 0)} className="inline-flex h-8 items-center gap-1.5 rounded-[2px] bg-ink px-3 text-xs font-medium text-paper disabled:opacity-50">
-                                        {replyBusy === root.id ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} Répondre
-                                      </button>
-                                      <button type="button" onClick={() => setReplyOpen(null)} className="text-xs text-smoke hover:text-ink">Annuler</button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <button type="button" onClick={() => setReplyOpen(root.id)} className="inline-flex items-center gap-1.5 text-xs text-smoke hover:text-ink">
-                                    <CornerDownRight className="size-3.5" /> Répondre
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {(notesBySub[r.name]?.length ?? 0) === 0 && <p className="text-xs text-smoke">Aucune note.</p>}
-                      </div>
-                    </div>
-                  )}
+                  </Link>
                 </div>
               </li>
             ))}

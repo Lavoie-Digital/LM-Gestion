@@ -9,14 +9,13 @@ import { ADMIN_EMAILS, verifyBearer } from "@/lib/access";
 import { subaccountsForOwnerEmail } from "@/lib/owners-admin";
 import { listDbAdmins } from "@/lib/admins";
 import { getManager } from "@/lib/managers";
-import { addNote, attachFilesToNote, listNotes, readNoteFiles } from "@/lib/notes";
-import { releaseAndNotifyNotes } from "@/lib/note-mailer";
+import { addNote, attachFilesToNote, listNotes, markSeenByClient, readNoteFiles, resolveThreadRoot } from "@/lib/notes";
+import { notifyAssignee, releaseAndNotifyNotes, threadUrl } from "@/lib/note-mailer";
 import { brandedBody, escapeHtml, sendBrandedEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const SITE_URL = "https://lmgestionimmobiliere.ca";
 
 export async function GET(request: Request) {
   if (!authConfigured()) return Response.json({ notes: [] });
@@ -28,8 +27,11 @@ export async function GET(request: Request) {
 
   try {
     await releaseAndNotifyNotes().catch(() => 0); // libère les notes programmées échues
-    // Le client ne voit QUE les notes envoyées (jamais les programmées).
-    return Response.json({ notes: await listNotes(subaccounts, { onlySent: true }) });
+    // Le client ne voit QUE les notes envoyées et publiques (ni programmées, ni internes).
+    const notes = await listNotes(subaccounts, { onlySent: true, excludeInternal: true });
+    // Suivi « vu par le client » — seulement pour un vrai client (pas un admin en « Voir en tant que »).
+    if (!id.isAdmin && subaccounts) await markSeenByClient(subaccounts).catch(() => {});
+    return Response.json({ notes });
   } catch (err) {
     return Response.json({ notes: [], error: (err as Error).message }, { status: 502 });
   }
@@ -71,16 +73,40 @@ export async function POST(request: Request) {
   }
 
   try {
-    const note = await addNote({ subaccount, title, body: text, from: "client", author: id.email, parentId });
-    if (files.length) await attachFilesToNote(note.id, files);
+    // Réponse : le fil doit appartenir au parc du client et ne pas être interne.
+    let root: Awaited<ReturnType<typeof resolveThreadRoot>> = null;
+    if (parentId) {
+      root = await resolveThreadRoot(parentId, subaccount);
+      if (!root || root.internal) return Response.json({ error: "Fil introuvable." }, { status: 404 });
+    }
 
-    // Destinataire(s) : le GESTIONNAIRE ASSIGNÉ à ce sous-compte s'il y en a un ;
+    // Nouveau sujet → assigné d'office au gestionnaire du client (s'il y en a un).
+    const clientManager = await getManager(subaccount).catch(() => null);
+    const note = await addNote({
+      subaccount,
+      title: root ? "" : title,
+      body: text,
+      from: "client",
+      author: id.email,
+      parentId: root?.id ?? null,
+      assignedTo: root ? undefined : clientManager,
+    });
+    if (files.length) await attachFilesToNote(note.id, files);
+    const threadId = root?.id ?? note.id;
+    const base = text || (files.length ? `${files.length} fichier(s) joint(s)` : "");
+
+    // Fil déjà assigné à un employé → c'est lui qu'on avise, avec un lien direct.
+    if (root?.assignedTo) {
+      await notifyAssignee({ to: root.assignedTo, threadId, subaccount, title: root.title, preview: base, reason: "client-reply" });
+      return Response.json({ ok: true, note, notified: 1 });
+    }
+
+    // Sinon : le GESTIONNAIRE ASSIGNÉ à ce sous-compte s'il y en a un ;
     // sinon, repli sur les gestionnaires (admins base + boîte de contact), le
     // dev (admins « env ») étant toujours exclu.
-    const assigned = await getManager(subaccount).catch(() => null);
     let recipients: string[];
-    if (assigned) {
-      recipients = [assigned];
+    if (clientManager) {
+      recipients = [clientManager];
     } else {
       const dbAdmins = await listDbAdmins().catch(() => []);
       const inbox = process.env.CONTACT_INBOX_EMAIL?.trim().toLowerCase();
@@ -88,7 +114,6 @@ export async function POST(request: Request) {
         (e) => !ADMIN_EMAILS.includes(e)
       );
     }
-    const base = text || (files.length ? `${files.length} fichier(s) joint(s)` : "");
     const preview = base.length > 400 ? `${base.slice(0, 400)}…` : base;
     const html = brandedBody({
       heading: "Nouveau message d'un client",
@@ -96,11 +121,11 @@ export async function POST(request: Request) {
         `Le client <strong style="color:#0b0b0c;">${escapeHtml(id.email)}</strong> (${escapeHtml(subaccount)}) vous a écrit :`,
         `<span style="display:block;border-left:3px solid #c6c4bd;padding-left:14px;color:#0b0b0c;white-space:pre-wrap;">${escapeHtml(preview)}</span>`,
       ],
-      ctaText: "Ouvrir la zone admin",
-      ctaUrl: `${SITE_URL}/admin`,
+      ctaText: "Ouvrir le fil",
+      ctaUrl: threadUrl(threadId),
       preheader: `Message de ${id.email}`,
     });
-    const textMail = `Le client ${id.email} (${subaccount}) vous a écrit :\n\n${preview}\n\nZone admin : ${SITE_URL}/admin`;
+    const textMail = `Le client ${id.email} (${subaccount}) vous a écrit :\n\n${preview}\n\nOuvrir le fil : ${threadUrl(threadId)}`;
     await Promise.allSettled(
       recipients.map((to) => sendBrandedEmail({ to, subject: "Message d'un client — LM Gestion Immobilière", html, text: textMail, replyTo: id.email }))
     );
