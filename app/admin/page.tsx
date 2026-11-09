@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, FolderOpen, Inbox, KeyRound, Loader2, LogOut, Plus, Search, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, FolderOpen, Inbox, KeyRound, UserPlus, Loader2, LogOut, Plus, Search, ShieldCheck, Sparkles, StickyNote, Trash2, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatCAD } from "@/lib/utils";
 import { DocumentExplorer } from "@/components/admin/document-explorer";
+import { useUnseenContacts } from "@/components/admin/use-unseen-contacts";
 
 type Row = { name: string; unitCount: number; monthlyRevenueCents: number; emails: string[]; openNotes?: number; manager?: string | null; manual?: boolean };
 type Admins = { envAdmins: string[]; dbAdmins: { id: string; email: string }[] };
@@ -17,6 +18,7 @@ const inputCls =
 export default function AdminPage() {
   const router = useRouter();
   const { user, loading, isAdmin, signOut } = useAuth();
+  const unseenContacts = useUnseenContacts();
 
   const [rows, setRows] = useState<Row[]>([]);
   const [admins, setAdmins] = useState<Admins>({ envAdmins: [], dbAdmins: [] });
@@ -208,6 +210,12 @@ export default function AdminPage() {
             <ArrowLeft className="size-4" /> Tableau de bord
           </Link>
           <span className="kicker text-smoke">Zone admin</span>
+          <Link href="/admin/demandes" className="inline-flex items-center gap-1.5 text-sm text-smoke underline-offset-2 hover:text-ink hover:underline">
+            <UserPlus className="size-3.5" /> Demandes de contact
+            {unseenContacts > 0 && (
+              <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[0.6rem] font-medium text-white no-underline">{unseenContacts}</span>
+            )}
+          </Link>
           <Link href="/admin/notes" className="inline-flex items-center gap-1.5 text-sm text-smoke underline-offset-2 hover:text-ink hover:underline">
             <Inbox className="size-3.5" /> Notes
             {totalOpen > 0 && (
@@ -232,6 +240,20 @@ export default function AdminPage() {
           Associez un ou plusieurs courriels à un sous-compte PlexFlow : chaque personne pourra se
           connecter et ne verra <strong>que</strong> ce parc. L'accès est accordé automatiquement.
         </p>
+
+        {unseenContacts > 0 && (
+          <Link
+            href="/admin/demandes"
+            className="mt-6 flex items-center justify-between gap-3 rounded-[3px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 transition-colors hover:bg-red-100"
+          >
+            <span className="inline-flex items-center gap-2">
+              <UserPlus className="size-4" />
+              <strong>{unseenContacts} nouvelle{unseenContacts > 1 ? "s" : ""} demande{unseenContacts > 1 ? "s" : ""} de contact</strong>
+              non vue{unseenContacts > 1 ? "s" : ""}
+            </span>
+            <span className="text-xs underline underline-offset-2">Voir</span>
+          </Link>
+        )}
 
         {error && (
           <p className="mt-6 rounded-[2px] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>

@@ -23,6 +23,7 @@ service cloud.firestore {
     match /pf_units/{doc}          { allow read, write: if false; }
     match /pf_tenants/{doc}        { allow read, write: if false; }
     match /metrics_snapshots/{doc} { allow read, write: if false; }
+    match /contact_requests/{doc}  { allow read, write: if false; }
 
     // Refus par défaut pour tout le reste.
     match /{document=**} {

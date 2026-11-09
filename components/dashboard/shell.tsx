@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { LIVE_TICKER } from "@/lib/data";
 import { useAuth } from "@/lib/auth";
+import { useUnseenContacts } from "@/components/admin/use-unseen-contacts";
 import { cn } from "@/lib/utils";
 import { easeLux } from "@/lib/motion";
 import { Logo } from "@/components/site/logo";
@@ -85,6 +86,7 @@ function SidebarInner({
 }) {
   const router = useRouter();
   const { signOut, isAdmin } = useAuth();
+  const unseenContacts = useUnseenContacts();
 
   async function handleSignOut() {
     await signOut();
@@ -113,6 +115,14 @@ function SidebarInner({
           >
             <ShieldCheck className="size-[1.05rem]" strokeWidth={1.6} />
             Zone admin
+            {unseenContacts > 0 && (
+              <span
+                className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[0.65rem] font-medium text-white"
+                title={`${unseenContacts} demande(s) de contact non vue(s)`}
+              >
+                {unseenContacts}
+              </span>
+            )}
           </Link>
         )}
         <div className="rounded-[4px] border border-line-dark bg-ink-2/60 p-3.5">

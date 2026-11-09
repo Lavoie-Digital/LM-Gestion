@@ -1,5 +1,6 @@
 import { COMPANY } from "@/lib/data";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { addContactRequest, setContactEmailOk } from "@/lib/contact-requests";
 
 /* ------------------------------------------------------------------ *
  * Formulaire de contact → envoi de courriels via SendGrid.
@@ -20,6 +21,7 @@ export const runtime = "nodejs";
 
 const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
 const SENDER_NAME = "LM Gestion Immobilière";
+const ADMIN_REQUESTS_URL = "https://lmgestionimmobiliere.ca/admin/demandes";
 
 type ContactBody = {
   nom?: string;
@@ -120,12 +122,6 @@ export async function POST(request: Request) {
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
   const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) {
-    return Response.json(
-      { error: "Configuration manquante : SENDGRID_API_KEY." },
-      { status: 503 }
-    );
-  }
   const fromEmail = process.env.CONTACT_FROM_EMAIL || "xavier@lavoiedigital.ca";
   const inbox = process.env.CONTACT_INBOX_EMAIL || "xavier@lavoiedigital.ca";
 
@@ -148,6 +144,20 @@ export async function POST(request: Request) {
       { error: "Veuillez fournir au moins votre nom et un courriel valide." },
       { status: 400 }
     );
+  }
+
+  // 0 — Enregistrement dans la zone admin AVANT tout envoi : la demande n'est
+  // jamais perdue, même si le courriel échoue ou se noie dans la boîte.
+  let requestId: string | null = null;
+  try {
+    requestId = await addContactRequest({ nom, courriel, tel, parc, service, message });
+  } catch (err) {
+    console.error("[contact] ✖ Enregistrement Firestore échoué :", err);
+  }
+
+  if (!apiKey) {
+    if (requestId) return Response.json({ ok: true });
+    return Response.json({ error: "Configuration manquante : SENDGRID_API_KEY." }, { status: 503 });
   }
 
   const from: From = { email: fromEmail, name: SENDER_NAME };
@@ -190,7 +200,8 @@ export async function POST(request: Request) {
        ${leadRow("Nom", nom)}${leadRow("Courriel", courriel)}${leadRow("Téléphone", tel)}${leadRow("Taille du parc", parc)}${leadRow("Service recherché", service)}
      </table>
      <div style="margin:26px 0 9px;font:600 9px/1 ${SANS};letter-spacing:2px;text-transform:uppercase;color:${BRAND.smoke};">Message</div>
-     <div style="font:400 15px/1.7 ${SANS};color:${BRAND.ink};background:${BRAND.paper};border:1px solid ${BRAND.line};padding:16px 18px;white-space:pre-wrap;">${escapeHtml(message || "—")}</div>`,
+     <div style="font:400 15px/1.7 ${SANS};color:${BRAND.ink};background:${BRAND.paper};border:1px solid ${BRAND.line};padding:16px 18px;white-space:pre-wrap;">${escapeHtml(message || "—")}</div>
+     ${requestId ? `<p style="margin:26px 0 0;font:400 13px/1.6 ${SANS};color:${BRAND.smoke};">Cette demande est aussi enregistrée dans la zone admin : <a href="${ADMIN_REQUESTS_URL}?id=${requestId}" style="color:${BRAND.ink};">ouvrir la demande</a>.</p>` : ""}`,
     `Nouvelle demande — ${nom}`
   );
 
@@ -213,12 +224,18 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[contact] ✖ Envoi SendGrid échoué :", err);
+    if (requestId) {
+      // Demande enregistrée → visible dans la zone admin (signalée « courriel non envoyé »).
+      await setContactEmailOk(requestId, false).catch(() => {});
+      return Response.json({ ok: true });
+    }
     return Response.json(
       { error: "L'envoi du courriel a échoué. Réessayez ou contactez-nous par téléphone." },
       { status: 502 }
     );
   }
 
+  if (requestId) await setContactEmailOk(requestId, true).catch(() => {});
   console.log(`[contact] ✓ Courriels envoyés (client: ${courriel}, boîte: ${inbox}).`);
   return Response.json({ ok: true });
 }

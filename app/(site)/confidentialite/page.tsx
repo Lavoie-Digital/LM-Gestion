@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Politique de confidentialité de LM Gestion Immobilière — protection des renseignements personnels conformément à la Loi 25 (Québec).",
 };
 
-const UPDATED = "24 octobre 2026";
+const UPDATED = "9 novembre 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -84,7 +84,9 @@ export default function ConfidentialitePage() {
                 <ul className="ml-5 flex list-disc flex-col gap-2">
                   <li>
                     <strong className="text-ink">Formulaire de contact</strong> : nom, courriel,
-                    téléphone, taille du parc, service recherché et contenu du message.
+                    téléphone, taille du parc, service recherché et contenu du message. Ces
+                    demandes sont conservées dans notre espace de gestion sécurisé, accessible
+                    uniquement à notre équipe, le temps nécessaire au suivi de votre demande.
                   </li>
                   <li>
                     <strong className="text-ink">Espace client (propriétaires)</strong> : adresse
